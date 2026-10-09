@@ -1,10 +1,13 @@
 """Full call analysis via Gemini (same path as transcription — avoids n8n/llm fallback)."""
 import json
+import logging
 import re
 from datetime import datetime, timezone
 
 from .ai_keys import gemini_api_key
 from .gemini import gemini_text
+
+log = logging.getLogger("atlas.call_analysis")
 
 _SCHEMA_HINT = {
     "executive_summary": "",
@@ -138,17 +141,99 @@ Transcript:
 {transcript}"""
 
 
-def _parse_json(text: str) -> dict:
-    text = re.sub(r"^```json\s*", "", text.strip(), flags=re.I)
+def _strip_fences(text: str) -> str:
+    text = text.strip()
+    text = re.sub(r"^```json\s*", "", text, flags=re.I)
     text = re.sub(r"^```\s*", "", text)
-    text = re.sub(r"\s*```$", "", text).strip()
-    try:
-        return json.loads(text)
-    except json.JSONDecodeError:
-        m = re.search(r"\{[\s\S]*\}", text)
-        if m:
-            return json.loads(m.group(0))
-        raise
+    text = re.sub(r"\s*```$", "", text)
+    return text.strip()
+
+
+def _extract_balanced_object(text: str) -> str:
+    start = text.find("{")
+    if start < 0:
+        raise json.JSONDecodeError("no JSON object", text, 0)
+    depth = 0
+    in_str = False
+    esc = False
+    for i in range(start, len(text)):
+        ch = text[i]
+        if in_str:
+            if esc:
+                esc = False
+            elif ch == "\\":
+                esc = True
+            elif ch == '"':
+                in_str = False
+            continue
+        if ch == '"':
+            in_str = True
+        elif ch == "{":
+            depth += 1
+        elif ch == "}":
+            depth -= 1
+            if depth == 0:
+                return text[start : i + 1]
+    # Truncated — return best effort and let repair close brackets
+    return text[start:]
+
+
+def _repair_json_text(text: str) -> str:
+    text = _strip_fences(text)
+    text = text.replace("\ufeff", "").replace("“", '"').replace("”", '"').replace("„", '"')
+    text = _extract_balanced_object(text)
+    text = re.sub(r",\s*}", "}", text)
+    text = re.sub(r",\s*]", "]", text)
+    # Remove // and /* */ comments (invalid in JSON but models sometimes add them)
+    text = re.sub(r"//[^\n]*", "", text)
+    text = re.sub(r"/\*[\s\S]*?\*/", "", text)
+    return text
+
+
+def _parse_json(text: str) -> dict:
+    candidates = [
+        text,
+        _repair_json_text(text),
+    ]
+    m = re.search(r"\{[\s\S]*\}", _strip_fences(text))
+    if m:
+        candidates.append(_repair_json_text(m.group(0)))
+    last_err: json.JSONDecodeError | None = None
+    for cand in candidates:
+        try:
+            return json.loads(cand)
+        except json.JSONDecodeError as exc:
+            last_err = exc
+            # Close missing brackets if output was cut off
+            if cand.count("{") > cand.count("}"):
+                padded = cand + ("}" * (cand.count("{") - cand.count("}")))
+                padded = re.sub(r",\s*}", "}", padded)
+                try:
+                    return json.loads(padded)
+                except json.JSONDecodeError as exc2:
+                    last_err = exc2
+    assert last_err is not None
+    raise last_err
+
+
+async def _repair_json_via_gemini(broken: str) -> dict:
+    snippet = broken[:14000]
+    prompt = (
+        "The text below must become ONE valid JSON object. "
+        "Fix syntax only (quotes, commas, brackets). Keep all Persian text and keys unchanged. "
+        "Output ONLY JSON, no markdown.\n\n"
+        f"{snippet}"
+    )
+    payload = {
+        "contents": [{"parts": [{"text": prompt}]}],
+        "generationConfig": {
+            "temperature": 0,
+            "maxOutputTokens": 32768,
+            "responseMimeType": "application/json",
+        },
+    }
+    fixed = await gemini_text(payload, timeout=300, prefer=["gemini-3.5-flash-lite", "gemini-2.5-flash"], min_len=20)
+    return _parse_json(fixed)
 
 
 async def analyze_transcript(
@@ -167,8 +252,20 @@ async def analyze_transcript(
             "responseMimeType": "application/json",
         },
     }
-    raw = await gemini_text(payload, timeout=600, prefer=["gemini-2.5-flash"], min_len=20)
-    analysis = _parse_json(raw)
+    raw = await gemini_text(
+        payload, timeout=600,
+        prefer=["gemini-3.5-flash-lite", "gemini-2.5-flash", "gemini-flash-latest"],
+        min_len=20,
+    )
+    try:
+        analysis = _parse_json(raw)
+    except json.JSONDecodeError as exc:
+        log.warning("analysis JSON parse failed (%s), attempting repair", exc)
+        try:
+            analysis = await _repair_json_via_gemini(raw)
+        except Exception as repair_exc:
+            log.exception("JSON repair failed")
+            raise RuntimeError(f"پاسخ تحلیل قابل خواندن نبود: {exc}") from repair_exc
     analysis = _normalize(analysis, meta)
     analysis["meta"].update({
         "call_id": meta.get("call_id"),
