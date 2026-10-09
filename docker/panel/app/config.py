@@ -1,17 +1,8 @@
 import os
-from pathlib import Path
 
-# Local dev: read secrets from docker/.env (gitignored; not used inside containers with env already set).
-if not os.getenv("AI_API_KEY"):
-    _loader = Path(__file__).resolve().parents[2] / "scripts" / "load_env.py"
-    if _loader.is_file():
-        import importlib.util
+from .env_loader import load_docker_env
 
-        spec = importlib.util.spec_from_file_location("atlas_load_env", _loader)
-        mod = importlib.util.module_from_spec(spec)
-        assert spec.loader is not None
-        spec.loader.exec_module(mod)
-        mod.load_docker_env()
+load_docker_env()
 
 DB_HOST = os.getenv("DB_HOST", "postgres")
 DB_PORT = int(os.getenv("DB_PORT", "5432"))
@@ -19,11 +10,9 @@ DB_NAME = os.getenv("DB_NAME", "atlas")
 DB_USER = os.getenv("DB_USER", "atlas")
 DB_PASSWORD = os.getenv("DB_PASSWORD", "atlas123")
 
-AI_API_KEY = os.getenv("AI_API_KEY", "")
 AI_MODEL = os.getenv("AI_MODEL", "gemini-2.5-flash")
 
 PANEL_TITLE = os.getenv("PANEL_TITLE", "پنل مدیریت اطلس")
-# Initial password for the bootstrap admin account (only used when the users table is empty).
 PANEL_PASSWORD = os.getenv("PANEL_PASSWORD", "")
 ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "admin")
 DEFAULT_COMPANY_NAME = os.getenv("COMPANY_NAME", "اطلس")
@@ -41,13 +30,7 @@ TRANSCRIPTION_API_URL = os.getenv(
 MAILER_URL = os.getenv("MAILER_URL", "http://mailer:8765")
 UPLOAD_MAX_MB = int(os.getenv("UPLOAD_MAX_MB", "25"))
 
-# Token for server-to-server API access (header X-API-Token); empty = disabled.
 API_TOKEN = os.getenv("API_TOKEN", "")
-# Lets an external showcase site call stats/upload endpoints without logging in.
 PUBLIC_DEMO_API = os.getenv("PUBLIC_DEMO_API", "true").lower() in ("1", "true", "yes")
-
-# Requests per minute per IP for upload endpoints.
 RATE_LIMIT_RPM = int(os.getenv("RATE_LIMIT_RPM", "30"))
-
-# CORS allowed origins (comma-separated, * = all)
 CORS_ORIGINS = os.getenv("CORS_ORIGINS", "*")

@@ -30,6 +30,7 @@ DEFAULT_SETTINGS = {
         "SMS_CUSTOMER_TEXT",
         "گروه نرم افزاری اطلس\nهوشمند تر کار کن سریع تر رشد کن\nبا سپاس از حسن انتخاب شما",
     ),
+    "gemini_api_key": "",
 }
 
 
@@ -79,6 +80,11 @@ def run() -> None:
     current = fetch_one("SELECT value FROM panel_settings WHERE key = 'notify_emails'")
     if legacy and legacy["value"] and current and not current["value"]:
         execute("UPDATE panel_settings SET value = %s WHERE key = 'notify_emails'", (legacy["value"],))
+
+    env_gemini = (os.getenv("AI_API_KEY") or "").strip()
+    gem_row = fetch_one("SELECT value FROM panel_settings WHERE key = 'gemini_api_key'")
+    if env_gemini and gem_row and not (gem_row["value"] or "").strip():
+        execute("UPDATE panel_settings SET value = %s WHERE key = 'gemini_api_key'", (env_gemini,))
 
     if not fetch_one("SELECT value FROM panel_settings WHERE key = 'session_secret'"):
         execute(

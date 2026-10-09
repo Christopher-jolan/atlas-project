@@ -2,7 +2,8 @@ import base64
 
 import httpx
 
-from .config import AI_API_KEY, TRANSCRIPTION_API_URL
+from .ai_keys import gemini_api_key
+from .config import TRANSCRIPTION_API_URL
 from .gemini import gemini_text
 
 
@@ -15,7 +16,7 @@ async def transcribe_audio(content: bytes, filename: str) -> str:
     }
     mime = mime_map.get(ext, "audio/mpeg")
 
-    if AI_API_KEY:
+    if gemini_api_key():
         return await _transcribe_gemini(content, mime)
     return await _transcribe_ollama(content, filename)
 

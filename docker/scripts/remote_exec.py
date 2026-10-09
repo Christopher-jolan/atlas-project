@@ -2,10 +2,15 @@
 """Run a shell command on the Atlas VPS: python remote_exec.py "<cmd>" """
 import os
 import sys
+from pathlib import Path
 
 import paramiko
 
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from load_env import load_docker_env
+
+load_docker_env()
 
 c = paramiko.SSHClient()
 c.set_missing_host_key_policy(paramiko.AutoAddPolicy())

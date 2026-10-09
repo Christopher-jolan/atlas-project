@@ -11,6 +11,13 @@ from pathlib import Path
 import paramiko
 
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from load_env import load_docker_env
+
+load_docker_env()
+if not os.environ.get("ATLAS_VPS_PASSWORD"):
+    raise SystemExit("ATLAS_VPS_PASSWORD را در docker/.env یا محیط سیستم تنظیم کنید.")
+
 LOCAL = Path(__file__).resolve().parents[1]
 REMOTE = "/opt/atlas"
 
@@ -88,7 +95,11 @@ if ai_key:
 run(f"grep -E '^(PANEL_DOMAIN|PANEL_PUBLIC_URL|PUBLIC_DEMO_API|CORS_ORIGINS|UPLOAD_MAX_MB|AI_API_KEY)=' {REMOTE}/.env | sed 's/AI_API_KEY=.*/AI_API_KEY=***redacted***/'")
 
 run("ufw status | head -3; (ufw status | grep -q 'Status: active' && ufw allow 443/tcp && ufw allow 443/udp) || true")
-run(f"cd {REMOTE} && docker compose -f docker-compose.prod.yml --env-file .env up -d --build panel llm mailer caddy n8n 2>&1 | tail -12", timeout=1200)
+run(
+    f"cd {REMOTE} && docker compose -f docker-compose.prod.yml --env-file .env "
+    f"up -d --build --force-recreate panel llm mailer caddy n8n 2>&1 | tail -15",
+    timeout=1200,
+)
 time.sleep(15)
 run("docker exec -u node atlas-n8n n8n import:workflow --input=/opt/atlas-import/workflows/atlas-call-intelligence-v1.json 2>&1 | tail -2")
 run("""docker exec atlas-postgres psql -U atlas -d atlas -c "UPDATE workflow_entity SET active = true WHERE name ILIKE 'Atlas%' RETURNING name, active;" """)

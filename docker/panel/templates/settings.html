@@ -125,6 +125,14 @@
   {% endif %}
 </div>
 
+<div class="card section-gap">
+  <div class="card-head"><h2>{{ icon("key") }}کلید Gemini (تحلیل تماس)</h2></div>
+  <p class="card-sub">برای رونویسی و تحلیل واقعی تماس لازم است. در سرور از متغیر محیطی هم پشتیبانی می‌شود؛ این فیلد برای تنظیم سریع از پنل است.</p>
+  <div class="field"><label for="gemini_api_key">کلید API</label>
+    <input type="password" id="gemini_api_key" name="gemini_api_key" class="input input-ltr" dir="ltr" autocomplete="off"
+      placeholder="{% if settings.gemini_api_key %}ذخیره شده — برای تغییر وارد کنید{% else %}AQ… یا AIza…{% endif %}"></div>
+</div>
+
 <div class="card">
   <div class="card-head"><h2>{{ icon("file") }}معرفی کسب‌وکار برای هوش مصنوعی</h2></div>
   <p class="card-sub">هرچه دقیق‌تر بنویسید، تحلیل‌ها و اقدامات پیشنهادی به کار شما نزدیک‌تر می‌شود: محصولات و خدمات، روند فروش (مثلاً ارسال پیش‌فاکتور)، اصطلاحات رایج و نکاتی که برای مدیر مهم است.</p>

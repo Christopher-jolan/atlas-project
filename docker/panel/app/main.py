@@ -23,10 +23,11 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from . import auth, fmt, migrations, notify, queries, sms
 from .ai import generate_executive_insights
 from .config import (
-    N8N_WEBHOOK_URL, UPLOAD_MAX_MB, API_TOKEN, RATE_LIMIT_RPM, CORS_ORIGINS,
+    UPLOAD_MAX_MB, API_TOKEN, RATE_LIMIT_RPM, CORS_ORIGINS,
     PUBLIC_DEMO_API, PANEL_PUBLIC_URL,
 )
 from .audio_meta import audio_duration_seconds
+from .call_analysis import analyze_transcript
 from .transcribe import transcribe_audio
 
 logging.basicConfig(level=logging.INFO)
@@ -366,52 +367,29 @@ async def _analyze_audio(content: bytes, filename: str, agent_name: str, custome
 
     duration_sec = audio_duration_seconds(content, filename)
     call_date = datetime.now().astimezone().isoformat()
-    payload = {
+    meta = {
         "call_id": cid,
         "department": department or "auto",
-        "transcript": transcript,
         "agent_name": agent_name or "اپراتور",
         "customer_name": customer_name or "مشتری",
         "customer_phone": customer_phone,
         "call_direction": "inbound",
         "call_duration_seconds": duration_sec,
         "call_date": call_date,
-        "product_context": settings.get("business_context", ""),
-        "company_name": settings.get("company_name", ""),
-        "notify_email": settings.get("notify_emails", ""),
-        "notify_mode": settings.get("notify_mode", "all"),
-        "panel_url": PANEL_PUBLIC_URL,
     }
     try:
-        async with httpx.AsyncClient(timeout=600) as client:
-            resp = await client.post(N8N_WEBHOOK_URL, json=payload)
-            resp.raise_for_status()
-            result = resp.json()
-    except httpx.HTTPStatusError as exc:
-        log.error("n8n HTTP error for %s: %s", cid, exc.response.text[:500])
-        raise HTTPException(502, "موتور تحلیل پاسخ نداد. چند دقیقه بعد دوباره تلاش کنید.") from exc
+        analysis = await analyze_transcript(
+            transcript,
+            meta,
+            product_context=settings.get("business_context", ""),
+        )
     except Exception as exc:
-        log.exception("n8n connection error for %s", cid)
-        raise HTTPException(502, "اتصال به موتور تحلیل برقرار نشد.") from exc
+        log.exception("Gemini analysis failed for %s", cid)
+        raise HTTPException(502, f"تحلیل تماس انجام نشد: {exc}") from exc
 
-    analysis = result.get("analysis") or {}
-    if not analysis.get("transcript"):
-        analysis["transcript"] = {"full_text": transcript}
-    if not analysis.get("input"):
-        analysis["input"] = {
-            "agent_name": agent_name or "اپراتور",
-            "customer_name": customer_name or "مشتری",
-            "customer_phone": customer_phone,
-        }
-    if not analysis.get("meta"):
-        analysis["meta"] = {
-            "call_date": call_date,
-            "call_direction": "inbound",
-            "call_duration_seconds": duration_sec,
-        }
     view = fmt.analysis_view(analysis)
-    final_id = result.get("call_id", cid)
-    dept = result.get("department") or analysis.get("department") or department or "auto"
+    final_id = cid
+    dept = (analysis.get("meta") or {}).get("department") or department or "auto"
     try:
         queries.upsert_call_analysis(
             call_id=final_id,
@@ -427,15 +405,17 @@ async def _analyze_audio(content: bytes, filename: str, agent_name: str, custome
         )
     except Exception:
         log.exception("Failed to upsert call analysis for %s", final_id)
+
+    notify_out = await _notify_after_call(final_id)
     log.info("Upload processed: %s (dept=%s)", final_id, dept)
     return {
-        "success": result.get("success", True),
+        "success": True,
         "call_id": final_id,
         "department": dept,
         "department_label": fmt.label(dept, "department"),
-        "email_sent": result.get("email_sent", False),
-        "sms_sent": result.get("sms_sent", False),
-        "customer_sms_sent": result.get("customer_sms_sent", False),
+        "email_sent": bool(notify_out.get("sent")),
+        "sms_sent": bool(notify_out.get("sms_sent")),
+        "customer_sms_sent": bool(notify_out.get("customer_sms_sent")),
         "transcript_length": len(transcript),
         "scores": {
             "purchase_intent": view["sales"]["intent"],
@@ -556,6 +536,7 @@ async def settings_save(
     sms_manager_mode: str = Form("all"),
     sms_customer_enabled: str = Form(""),
     sms_customer_text: str = Form(""),
+    gemini_api_key: str = Form(""),
 ):
     require(request, "admin")
     color = brand_color if brand_color.startswith("#") and len(brand_color) in (4, 7) else "#4f46e5"
@@ -581,8 +562,13 @@ async def settings_save(
         values["sms_api_key"] = sms_api_key.strip()
     if sms_password:
         values["sms_password"] = sms_password
+    if gemini_api_key.strip():
+        values["gemini_api_key"] = gemini_api_key.strip()
     for key, value in values.items():
         queries.save_setting(key, value)
+    if gemini_api_key.strip():
+        from .ai_keys import invalidate_cache
+        invalidate_cache()
 
     if remove_logo == "on":
         queries.save_setting("logo_data", "")
@@ -677,15 +663,12 @@ async def test_email_api(request: Request):
     return {"sent_to": to}
 
 
-@app.post("/api/notify-call")
-async def notify_call_api(request: Request):
-    """Called by the n8n workflow after a call is saved; emails managers per notify settings."""
-    body = await request.json()
-    call = queries.call_detail(str(body.get("call_id", "")))
+async def _notify_after_call(call_id: str, to_override: str = "") -> dict:
+    call = queries.call_detail(call_id)
     if not call:
         return {"sent": False, "skipped": "call_not_found"}
     settings = queries.get_settings()
-    to = body.get("to") or settings.get("notify_emails", "")
+    to = to_override or settings.get("notify_emails", "")
     mode = settings.get("notify_mode", "all")
     out: dict = {"sent": False}
     if not to:
@@ -704,6 +687,13 @@ async def notify_call_api(request: Request):
     customer = out["sms"].get("customer")
     out["customer_sms_sent"] = isinstance(customer, dict) and bool(customer.get("success"))
     return out
+
+
+@app.post("/api/notify-call")
+async def notify_call_api(request: Request):
+    """Called by the n8n workflow after a call is saved; emails managers per notify settings."""
+    body = await request.json()
+    return await _notify_after_call(str(body.get("call_id", "")), to_override=body.get("to") or "")
 
 
 @app.post("/api/test-sms")
@@ -884,13 +874,19 @@ async def api_top_performers(limit: int = 10):
 
 @app.get("/api/health")
 async def health_check():
+    from .ai_keys import gemini_api_key
+
     try:
         queries.overview_stats()
         db = "ok"
     except Exception:
         db = "error"
     return JSONResponse(
-        {"status": "ok" if db == "ok" else "degraded", "database": db,
-         "timestamp": datetime.now().isoformat()},
+        {
+            "status": "ok" if db == "ok" else "degraded",
+            "database": db,
+            "gemini_configured": bool(gemini_api_key()),
+            "timestamp": datetime.now().isoformat(),
+        },
         status_code=200 if db == "ok" else 503,
     )

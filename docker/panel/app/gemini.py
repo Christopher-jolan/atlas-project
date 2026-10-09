@@ -3,16 +3,17 @@ import logging
 
 import httpx
 
-from .config import AI_API_KEY, AI_MODEL
+from .ai_keys import gemini_api_key
+from .config import AI_MODEL
 
 log = logging.getLogger("atlas.gemini")
 
 MODELS = [
     AI_MODEL,
     "gemini-2.5-flash",
+    "gemini-3.5-flash-lite",
     "gemini-flash-latest",
-    "gemini-3.8-flash",
-    "gemini-3.5-transcribe",
+    "gemini-2.0-flash",
 ]
 
 
@@ -45,14 +46,15 @@ async def gemini_text(
     min_len: int = 1,
 ) -> str:
     """Try models in order; return the first response with at least min_len chars of text."""
-    if not AI_API_KEY:
+    api_key = gemini_api_key()
+    if not api_key:
         raise RuntimeError("AI_API_KEY is empty")
     last = "no model returned text"
     async with httpx.AsyncClient(timeout=timeout) as client:
         for model in _models(prefer):
             url = (
                 f"https://generativelanguage.googleapis.com/v1beta/models/"
-                f"{model}:generateContent?key={AI_API_KEY}"
+                f"{model}:generateContent?key={api_key}"
             )
             for attempt in range(4):
                 try:
@@ -65,6 +67,8 @@ async def gemini_text(
                     continue
                 if resp.status_code >= 400:
                     last = f"{model}: {resp.status_code} {resp.text[:300]}"
+                    if resp.status_code in (404, 400):
+                        continue
                     break
                 text = extract_text(resp.json())
                 if len(text) >= min_len:

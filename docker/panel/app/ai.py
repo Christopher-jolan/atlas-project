@@ -1,11 +1,11 @@
 import json
 
-from .config import AI_API_KEY
+from .ai_keys import gemini_api_key
 from .gemini import gemini_text
 
 
 async def generate_executive_insights(context: dict) -> str:
-    if not AI_API_KEY:
+    if not gemini_api_key():
         return "کلید AI_API_KEY تنظیم نشده است. برای بینش هوشمند، کلید Gemini را در env قرار دهید."
 
     prompt = f"""تو مشاور مدیریتی یک شرکت نرم‌افزار حسابداری ایرانی هستی.
