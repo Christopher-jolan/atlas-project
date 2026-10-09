@@ -1,0 +1,56 @@
+# 知识卡导出索引文件
+schema_version: 1
+locale: en-US
+branch: master
+nodes_managed: true
+exported_at: "2026-08-14T18:03:47Z"
+modules:
+    "":
+        dir_name: Project Atlas — AI Automation Company Workspace
+        title: Project Atlas — AI Automation Company Workspace
+        scope:
+            - README.md
+            - Automation Ideas.md
+            - Business Ideas.md
+            - Pain Points.md
+            - .gitignore
+            - CHANGELOG.md
+        source_files: []
+        children:
+            - company_strategy_market
+            - docker_infrastructure
+            - products
+        depends_on: []
+        related_to: []
+    company_strategy_market:
+        dir_name: Company Identity & Strategy Documents
+        title: Company Identity & Strategy Documents
+        scope:
+            - 00_Company/
+            - 01_Strategy/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to:
+            - path: products
+    docker_infrastructure:
+        dir_name: Atlas Call Intelligence Docker Infrastructure
+        title: Atlas Call Intelligence Docker Infrastructure
+        scope:
+            - docker/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to:
+            - path: products
+    products:
+        dir_name: Atlas Product Portfolio Documentation
+        title: Atlas Product Portfolio Documentation
+        scope:
+            - 03_Products/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to:
+            - path: company_strategy_market
+            - path: docker_infrastructure

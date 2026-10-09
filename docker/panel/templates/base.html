@@ -1,0 +1,150 @@
+{% from "_macros.html" import icon %}
+{%- set company = brand.company_name or "اطلس" -%}
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="theme-color" content="{{ brand.brand_color or '#4f46e5' }}">
+  <title>{% block title %}داشبورد{% endblock %} | {{ company }}</title>
+  <link rel="preload" href="/static/fonts/Vazirmatn-Variable.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/static/css/style.css?v={{ asset_v }}">
+  {% if brand.logo_data %}<link rel="icon" href="{{ brand.logo_data }}">{% endif %}
+  <style>:root { --brand: {{ brand.brand_color or '#4f46e5' }}; }</style>
+  <script>
+    (function () {
+      var t = localStorage.getItem("atlas-theme");
+      if (!t) t = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+      document.documentElement.setAttribute("data-theme", t);
+    })();
+  </script>
+  {% block head %}{% endblock %}
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar" id="sidebar" aria-label="منوی اصلی">
+    <a href="/" class="brand">
+      <span class="brand-mark">{% if brand.logo_data %}<img src="{{ brand.logo_data }}" alt="">{% else %}{{ company[:1] }}{% endif %}</span>
+      <span class="brand-text"><strong>{{ company }}</strong><small>{{ brand.company_tagline or "هوش تماس و تحلیل مکالمات" }}</small></span>
+    </a>
+
+    <nav class="nav">
+      <div class="nav-group">
+        <div class="nav-label">اصلی</div>
+        <a href="/" class="{% if active == 'dashboard' %}active{% endif %}">{{ icon("dashboard") }}داشبورد</a>
+        {% if can("upload") %}<a href="/upload" class="{% if active == 'upload' %}active{% endif %}">{{ icon("mic") }}تحلیل تماس جدید</a>{% endif %}
+        <a href="/search" class="{% if active in ('search', 'calls') %}active{% endif %}">{{ icon("search") }}جستجوی تماس‌ها</a>
+        <a href="/ai-insights" class="{% if active == 'ai' %}active{% endif %}">{{ icon("sparkles") }}تحلیل هوشمند</a>
+      </div>
+      <div class="nav-group">
+        <div class="nav-label">مشتریان و فروش</div>
+        <a href="/ready-to-buy" class="{% if active == 'ready' %}active{% endif %}">{{ icon("cart") }}آماده خرید</a>
+        <a href="/successful-sales" class="{% if active == 'sales' %}active{% endif %}">{{ icon("trending") }}فرصت‌های فروش موفق</a>
+        <a href="/unhappy-customers" class="{% if active == 'unhappy' %}active{% endif %}">{{ icon("frown") }}مشتریان ناراضی</a>
+      </div>
+      <div class="nav-group">
+        <div class="nav-label">تیم</div>
+        <a href="/top-performers" class="{% if active == 'top' %}active{% endif %}">{{ icon("award") }}برترین اپراتورها</a>
+        <a href="/staff-performance" class="{% if active == 'staff' %}active{% endif %}">{{ icon("users") }}عملکرد کارکنان</a>
+        <a href="/satisfaction" class="{% if active == 'satisfaction' %}active{% endif %}">{{ icon("smile") }}رضایت مشتریان</a>
+        <a href="/call-duration" class="{% if active == 'duration' %}active{% endif %}">{{ icon("clock") }}مدت مکالمات</a>
+        <a href="/monthly-reports" class="{% if active == 'monthly' %}active{% endif %}">{{ icon("calendar") }}گزارش‌های ماهانه</a>
+      </div>
+      {% if can("admin") %}
+      <div class="nav-group">
+        <div class="nav-label">مدیریت</div>
+        <a href="/settings" class="{% if active == 'settings' %}active{% endif %}">{{ icon("settings") }}تنظیمات</a>
+        <a href="/users" class="{% if active == 'users' %}active{% endif %}">{{ icon("shield") }}کاربران</a>
+      </div>
+      {% endif %}
+    </nav>
+
+    <div class="sidebar-foot">
+      {% if user %}
+      <a href="/account" class="user-chip">
+        <span class="avatar">{{ (user.full_name or user.username)[:1] }}</span>
+        <span><span>{{ user.full_name or user.username }}</span><small>{{ roles.get(user.role, user.role) }}</small></span>
+      </a>
+      {% endif %}
+      <div class="sidebar-actions">
+        <button type="button" class="btn btn-ghost btn-sm" id="theme-toggle" aria-label="تغییر حالت روشن و تاریک">
+          <span class="theme-dark">{{ icon("moon", "icon-sm") }}تیره</span><span class="theme-light hidden">{{ icon("sun", "icon-sm") }}روشن</span>
+        </button>
+        <a href="/logout" class="btn btn-ghost btn-sm">{{ icon("logout", "icon-sm") }}خروج</a>
+      </div>
+    </div>
+  </aside>
+  <div class="overlay" id="overlay"></div>
+
+  <div class="main">
+    <header class="topbar">
+      <button type="button" class="btn btn-ghost btn-icon menu-btn" id="menu-btn" aria-label="باز کردن منو">{{ icon("menu") }}</button>
+      <div>
+        <h1>{% block heading %}{{ self.title() }}{% endblock %}</h1>
+        {% block subtitle %}{% endblock %}
+      </div>
+      <div class="topbar-spacer"></div>
+      {% block actions %}{% endblock %}
+    </header>
+    <main class="content">
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+</div>
+
+<script>
+  (function () {
+    var body = document.body;
+    document.getElementById("menu-btn").addEventListener("click", function () { body.classList.add("nav-open"); });
+    document.getElementById("overlay").addEventListener("click", function () { body.classList.remove("nav-open"); });
+    document.addEventListener("keydown", function (e) { if (e.key === "Escape") body.classList.remove("nav-open"); });
+
+    var root = document.documentElement, btn = document.getElementById("theme-toggle");
+    function syncTheme() {
+      var dark = root.getAttribute("data-theme") === "dark";
+      btn.querySelector(".theme-dark").classList.toggle("hidden", dark);
+      btn.querySelector(".theme-light").classList.toggle("hidden", !dark);
+    }
+    btn.addEventListener("click", function () {
+      var next = root.getAttribute("data-theme") === "dark" ? "light" : "dark";
+      root.setAttribute("data-theme", next);
+      localStorage.setItem("atlas-theme", next);
+      syncTheme();
+      document.dispatchEvent(new Event("atlas:theme"));
+    });
+    syncTheme();
+
+    document.querySelectorAll("table.responsive").forEach(function (table) {
+      var heads = Array.prototype.map.call(table.querySelectorAll("thead th"), function (th) { return th.textContent.trim(); });
+      table.querySelectorAll("tbody tr").forEach(function (tr) {
+        Array.prototype.forEach.call(tr.children, function (td, i) {
+          if (!td.hasAttribute("data-label")) td.setAttribute("data-label", heads[i] || "");
+        });
+      });
+    });
+
+    document.querySelectorAll("tr[data-href]").forEach(function (tr) {
+      tr.classList.add("row-link");
+      tr.addEventListener("click", function (e) {
+        if (e.target.closest("a, button, form")) return;
+        window.location = tr.getAttribute("data-href");
+      });
+    });
+
+    document.querySelectorAll("form[data-confirm]").forEach(function (f) {
+      f.addEventListener("submit", function (e) { if (!confirm(f.getAttribute("data-confirm"))) e.preventDefault(); });
+    });
+  })();
+
+  window.faNum = function (v) {
+    if (v === null || v === undefined || v === "") return "—";
+    return String(v).replace(/\d/g, function (d) { return "۰۱۲۳۴۵۶۷۸۹"[d]; });
+  };
+  window.escapeHtml = function (s) {
+    var d = document.createElement("div"); d.textContent = s == null ? "" : String(s); return d.innerHTML;
+  };
+</script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,138 @@
+{
+  "name": "Audio Analysis Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "audio-analysis",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        260,
+        280
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const body = $input.item.json;\nconst audioUrl = body.audioUrl || body.audio_url || body.fileUrl || body.file_url;\nconst prompt = `You are an AI assistant for summarizing a sales call recording. Analyze the audio transcript and return a JSON object with these fields:\n- category: what type of call this is (sales, support, onboarding, complaint, etc.)\n- customer_request: what the customer asked for or wanted\n- pain_points: the customer\u2019s problems or complaints\n- sales_rep_behavior: how the sales or support rep behaved\n- key_takeaways: a short summary of the most important insights\n- sentiment: overall sentiment (positive, neutral, negative)\nIf the audio content is not clearly a phone/business call, respond with category: unknown and brief explanation.\nTranscript:\n${body.transcript || ''}`;\nreturn [{ json: { audioUrl, transcript: body.transcript || '', prompt } }];"
+      },
+      "id": "set-prompt",
+      "name": "Prepare Prompt",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 2,
+      "position": [
+        470,
+        280
+      ]
+    },
+    {
+      "parameters": {
+        "requestMethod": "POST",
+        "url": "={{ $json[\"apiUrl\"] || $workflow.staticData.apiUrl || $env.API_URL }}",
+        "jsonParameters": true,
+        "options": {
+          "bodyContentType": "json"
+        },
+        "bodyParametersJson": "={\"model\": \"gpt-4o-mini\", \"input\": [{\"role\": \"user\", \"content\": $json.prompt}], \"temperature\": 0.2}"
+      },
+      "id": "ai-request",
+      "name": "AI Request",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 2,
+      "position": [
+        680,
+        280
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const aiResponse = $input.item.json;\nconst output = aiResponse.output || aiResponse.choices?.[0]?.message || aiResponse.choices?.[0]?.text || aiResponse.data?.[0]?.text || aiResponse.choices?.[0]?.output?.[0]?.content?.[0]?.text || JSON.stringify(aiResponse);\nreturn [{ json: { analysis: output, raw: aiResponse } }];"
+      },
+      "id": "format-response",
+      "name": "Format AI Response",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 2,
+      "position": [
+        900,
+        280
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "respond",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        280
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Prepare Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Prompt": {
+      "main": [
+        [
+          {
+            "node": "AI Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Request": {
+      "main": [
+        [
+          {
+            "node": "Format AI Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format AI Response": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": {
+    "apiUrl": "http://localhost:11434/v1/chat/completions"
+  },
+  "tags": [
+    "audio",
+    "analysis",
+    "sales"
+  ]
+}

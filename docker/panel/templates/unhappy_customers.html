@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon, score, priority, empty, pager, search_bar %}
+{% block title %}مشتریان ناراضی{% endblock %}
+{% block subtitle %}<div class="subtitle-top">تماس‌هایی با رضایت پایین، ریسک ریزش بالا یا نیاز به بررسی مدیر.</div>{% endblock %}
+{% block actions %}<a href="/export/unhappy" class="btn btn-ghost no-print">{{ icon("download", "icon-sm") }}<span>خروجی اکسل</span></a>{% endblock %}
+
+{% block content %}
+<div class="card">
+  {{ search_bar("/unhappy-customers", q) }}
+  <div class="table-wrap"><table class="responsive">
+    <thead><tr><th>مشتری</th><th>تلفن</th><th>رضایت</th><th>وضعیت مشکل</th><th>ریسک ریزش</th><th>اولویت</th><th>اپراتور</th><th>تاریخ</th></tr></thead>
+    <tbody>
+    {% for c in items %}
+      <tr data-href="/calls/{{ c.call_id }}" class="{% if c.needs_human_review %}row-alert{% endif %}">
+        <td><a href="/calls/{{ c.call_id }}" class="cell-strong">{{ c.customer_name or "مشتری ناشناس" }}</a></td>
+        <td class="num" dir="ltr">{{ c.customer_phone | fa }}</td>
+        <td>{{ score(c.satisfaction_final_score) }}</td>
+        <td>{{ c.resolution_status | label('resolution') }}</td>
+        <td>{% if c.retention_risk == 'high' %}<span class="badge bad">زیاد</span>{% else %}{{ c.retention_risk | label('level') }}{% endif %}</td>
+        <td>{{ priority(c.ticket_priority) }}</td>
+        <td>{{ c.agent_name or "—" }}</td>
+        <td class="cell-muted num">{{ c.call_date | jdate }}</td>
+      </tr>
+    {% else %}
+      <tr><td colspan="8" class="empty">مشتری ناراضی‌ای ثبت نشده است. عالی است!</td></tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+  {{ pager(page, items | length, q) }}
+</div>
+{% endblock %}

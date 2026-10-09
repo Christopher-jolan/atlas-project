@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon, score, priority, dept, empty %}
+{% block title %}داشبورد{% endblock %}
+{% block subtitle %}<div class="subtitle-top">{{ now_fn() | jdate(long=True) }}</div>{% endblock %}
+{% block actions %}
+  {% if can("upload") %}<a href="/upload" class="btn">{{ icon("mic", "icon-sm") }}<span>تحلیل تماس</span></a>{% endif %}
+{% endblock %}
+
+{% block content %}
+<nav class="segmented no-print" aria-label="بازه زمانی آمار">
+  {% for key, title in ranges.items() %}
+    <a href="/{% if key %}?range={{ key }}{% endif %}" class="{% if key == current_range %}active{% endif %}">{{ title }}</a>
+  {% endfor %}
+</nav>
+
+<div class="kpi-grid">
+  <div class="kpi"><span class="kpi-icon">{{ icon("phone") }}</span><div><span>کل تماس‌ها</span><strong>{{ stats.total_calls | fa }}</strong></div></div>
+  <div class="kpi"><span class="kpi-icon">{{ icon("trending") }}</span><div><span>تماس‌های فروش</span><strong>{{ stats.sales_calls | fa }}</strong></div></div>
+  <div class="kpi"><span class="kpi-icon good">{{ icon("headset") }}</span><div><span>تماس‌های پشتیبانی</span><strong>{{ stats.support_calls | fa }}</strong></div></div>
+  <div class="kpi"><span class="kpi-icon good">{{ icon("smile") }}</span><div><span>میانگین رضایت</span><strong>{{ stats.avg_satisfaction | fa }}<small> / ۱۰۰</small></strong></div></div>
+  <div class="kpi"><span class="kpi-icon">{{ icon("award") }}</span><div><span>کیفیت اپراتورها</span><strong>{{ stats.avg_agent_quality | fa }}<small> / ۱۰۰</small></strong></div></div>
+  <a href="/ready-to-buy" class="kpi" style="color:inherit"><span class="kpi-icon mid">{{ icon("cart") }}</span><div><span>مشتریان آماده خرید</span><strong>{{ stats.hot_leads | fa }}</strong></div></a>
+  <a href="/unhappy-customers" class="kpi" style="color:inherit"><span class="kpi-icon bad">{{ icon("frown") }}</span><div><span>مشتریان ناراضی</span><strong>{{ stats.unhappy_count | fa }}</strong></div></a>
+  <div class="kpi"><span class="kpi-icon">{{ icon("clock") }}</span><div><span>مجموع مکالمات</span><strong>{{ fmt_duration(stats.total_talk_seconds) }}</strong></div></div>
+</div>
+
+<div class="grid-3 section-gap">
+  <div class="card span-2">
+    <div class="card-head"><h2>{{ icon("trending") }}روند ۳۰ روز اخیر</h2></div>
+    {% if trend %}<div class="chart-box"><canvas id="trendChart" aria-label="نمودار روند تماس‌ها"></canvas></div>
+    {% else %}{{ empty("هنوز داده‌ای برای نمایش روند وجود ندارد.", "trending") }}{% endif %}
+  </div>
+  <div class="card">
+    <div class="card-head"><h2>{{ icon("target") }}تفکیک بخش‌ها</h2></div>
+    {% if departments %}<div class="chart-box sm"><canvas id="deptChart" aria-label="نمودار تفکیک بخش‌ها"></canvas></div>
+    {% else %}{{ empty("بدون داده", "target") }}{% endif %}
+  </div>
+</div>
+
+<div class="grid-3">
+  <div class="card span-2">
+    <div class="card-head"><h2>{{ icon("phone") }}آخرین تماس‌ها</h2><span class="spacer"></span>
+      <a href="/search" class="btn btn-ghost btn-sm">همه تماس‌ها</a></div>
+    {% if recent %}
+    <div class="table-wrap"><table class="responsive">
+      <thead><tr><th>مشتری</th><th>اپراتور</th><th>بخش</th><th>خرید</th><th>رضایت</th><th>اولویت</th><th>تاریخ</th></tr></thead>
+      <tbody>
+      {% for c in recent %}
+        <tr data-href="/calls/{{ c.call_id }}" class="{% if c.needs_human_review %}row-alert{% endif %}">
+          <td><a href="/calls/{{ c.call_id }}" class="cell-strong">{{ c.customer_name or "مشتری ناشناس" }}</a></td>
+          <td>{{ c.agent_name or "—" }}</td>
+          <td>{{ dept(c.department) }}</td>
+          <td>{{ score(c.purchase_intent_score) }}</td>
+          <td>{{ score(c.satisfaction_final_score) }}</td>
+          <td>{{ priority(c.ticket_priority) }}</td>
+          <td class="cell-muted num">{{ c.call_date | jdate }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table></div>
+    {% else %}
+      {{ empty("هنوز تماسی تحلیل نشده است. اولین فایل صوتی را آپلود کنید.", "mic") }}
+      {% if can("upload") %}<p style="text-align:center"><a href="/upload" class="btn">آپلود اولین تماس</a></p>{% endif %}
+    {% endif %}
+  </div>
+  <div class="card">
+    <div class="card-head"><h2>{{ icon("award") }}برترین اپراتورها</h2><span class="spacer"></span>
+      <a href="/top-performers" class="btn btn-ghost btn-sm">همه</a></div>
+    {% if top %}
+    <div class="meters">
+      {% for p in top %}
+        <div class="meter">
+          <span class="meter-label"><span class="cell-strong">{{ p.agent_name }}</span><br><span class="cell-muted">{{ p.total_calls | fa }} تماس</span></span>
+          <span class="meter-track"><span class="meter-fill {{ p.success_score | tone }}" style="width: {{ (p.success_score or 0) | int }}%"></span></span>
+          <span class="meter-value">{{ p.success_score | fa }}</span>
+        </div>
+      {% endfor %}
+    </div>
+    {% else %}{{ empty("بدون داده", "award") }}{% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/chart.umd.min.js"></script>
+<script>
+(function () {
+  var trend = [
+    {% for d in trend %}{ label: "{{ d.day | jdate }}", calls: {{ d.calls or 0 }}, sat: {{ d.avg_satisfaction or 'null' }}, intent: {{ d.avg_intent or 'null' }} }{% if not loop.last %},{% endif %}{% endfor %}
+  ];
+  var depts = [
+    {% for d in departments %}{ label: "{{ d.department | label('department') }}", total: {{ d.total or 0 }} }{% if not loop.last %},{% endif %}{% endfor %}
+  ];
+  var charts = [];
+
+  function css(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+  function build() {
+    charts.forEach(function (c) { c.destroy(); }); charts = [];
+    Chart.defaults.font.family = "Vazirmatn, Tahoma, sans-serif";
+    Chart.defaults.color = css("--muted");
+    Chart.defaults.borderColor = css("--border");
+    var brandColor = css("--brand"), good = css("--good"), mid = css("--mid");
+    var tooltip = { rtl: true, textDirection: "rtl", padding: 10, cornerRadius: 10,
+      callbacks: { label: function (ctx) { return " " + ctx.dataset.label + ": " + faNum(ctx.formattedValue); } } };
+    var legend = { rtl: true, position: "bottom", labels: { usePointStyle: true, boxWidth: 8, padding: 16 } };
+
+    var t = document.getElementById("trendChart");
+    if (t) charts.push(new Chart(t, {
+      data: {
+        labels: trend.map(function (d) { return d.label; }),
+        datasets: [
+          { type: "bar", label: "تعداد تماس", data: trend.map(function (d) { return d.calls; }), backgroundColor: brandColor + "33", borderColor: brandColor, borderWidth: 1, borderRadius: 6, yAxisID: "y1" },
+          { type: "line", label: "رضایت", data: trend.map(function (d) { return d.sat; }), borderColor: good, backgroundColor: good, tension: .35, pointRadius: 2, spanGaps: true },
+          { type: "line", label: "قصد خرید", data: trend.map(function (d) { return d.intent; }), borderColor: mid, backgroundColor: mid, tension: .35, pointRadius: 2, spanGaps: true }
+        ]
+      },
+      options: {
+        maintainAspectRatio: false, interaction: { mode: "index", intersect: false },
+        plugins: { legend: legend, tooltip: tooltip },
+        scales: {
+          x: { reverse: true, grid: { display: false }, ticks: { maxRotation: 0, autoSkipPadding: 16 } },
+          y: { position: "right", min: 0, max: 100, ticks: { callback: faNum } },
+          y1: { position: "left", beginAtZero: true, grid: { display: false }, ticks: { precision: 0, callback: faNum } }
+        }
+      }
+    }));
+
+    var d = document.getElementById("deptChart");
+    if (d) charts.push(new Chart(d, {
+      type: "doughnut",
+      data: { labels: depts.map(function (x) { return x.label; }),
+        datasets: [{ data: depts.map(function (x) { return x.total; }), backgroundColor: [brandColor, good, mid, css("--bad"), css("--muted")], borderWidth: 0 }] },
+      options: { maintainAspectRatio: false, cutout: "68%", plugins: { legend: legend,
+        tooltip: { rtl: true, callbacks: { label: function (ctx) { return " " + ctx.label + ": " + faNum(ctx.raw); } } } } }
+    }));
+  }
+  build();
+  document.addEventListener("atlas:theme", build);
+})();
+</script>
+{% endblock %}

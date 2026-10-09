@@ -1,0 +1,161 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: atlas-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-atlas}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-atlas}
+    volumes:
+      - ./postgres/data:/var/lib/postgresql/data
+      - ./postgres/init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-atlas}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - atlas
+
+  n8n:
+    image: docker.n8n.io/n8nio/n8n:1.72.1
+    container_name: atlas-n8n
+    restart: unless-stopped
+    ports:
+      - "5678:5678"
+    environment:
+      DB_TYPE: postgresdb
+      DB_POSTGRESDB_HOST: postgres
+      DB_POSTGRESDB_PORT: 5432
+      DB_POSTGRESDB_DATABASE: ${POSTGRES_DB:-atlas}
+      DB_POSTGRESDB_USER: ${POSTGRES_USER:-atlas}
+      DB_POSTGRESDB_PASSWORD: ${POSTGRES_PASSWORD}
+      GENERIC_TIMEZONE: Asia/Tehran
+      TZ: Asia/Tehran
+      N8N_HOST: ${N8N_HOST:-141.11.21.147}
+      N8N_PORT: 5678
+      N8N_PROTOCOL: http
+      WEBHOOK_URL: ${WEBHOOK_URL:-http://141.11.21.147:5678/}
+      N8N_EDITOR_BASE_URL: ${WEBHOOK_URL:-http://141.11.21.147:5678/}
+      N8N_BASIC_AUTH_ACTIVE: "true"
+      N8N_BASIC_AUTH_USER: ${N8N_USER:-admin}
+      N8N_BASIC_AUTH_PASSWORD: ${N8N_PASSWORD}
+      N8N_SECURE_COOKIE: "false"
+      N8N_BLOCK_ENV_ACCESS_IN_NODE: "false"
+      API_URL: http://llm:8080/v1/chat/completions
+      TRANSCRIPTION_API_URL: ${TRANSCRIPTION_API_URL:-}
+      API_KEY: ${AI_API_KEY:-}
+      AI_MODEL: ${AI_MODEL:-gemini-2.5-flash}
+      ATLAS_MANAGER_EMAIL: ${ATLAS_MANAGER_EMAIL:-}
+      ATLAS_SMTP_FROM: ${ATLAS_SMTP_FROM:-}
+      PANEL_INTERNAL_URL: http://panel:8080
+      PANEL_API_TOKEN: ${API_TOKEN:-}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./n8n/data:/home/node/.n8n
+      - ./n8n/workflows:/opt/atlas-import/workflows:ro
+      - ./n8n/credentials:/opt/atlas-import/credentials:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      llm:
+        condition: service_started
+    networks:
+      - atlas
+
+  llm:
+    build: ./llm
+    container_name: atlas-llm
+    restart: unless-stopped
+    environment:
+      AI_API_KEY: ${AI_API_KEY:-}
+      AI_MODEL: ${AI_MODEL:-gemini-2.5-flash}
+      LLM_PORT: 8080
+    networks:
+      - atlas
+
+  mailer:
+    image: python:3.12-slim
+    container_name: atlas-mailer
+    restart: unless-stopped
+    working_dir: /app
+    command: ["python", "mailer.py"]
+    environment:
+      SMTP_HOST: ${SMTP_HOST:-smtp.mail.yahoo.com}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+      ATLAS_MANAGER_EMAIL: ${ATLAS_MANAGER_EMAIL:-}
+      MAILER_PORT: 8765
+    volumes:
+      - ./mailer:/app
+    networks:
+      - atlas
+
+  panel:
+    build: ./panel
+    container_name: atlas-panel
+    restart: unless-stopped
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${POSTGRES_DB:-atlas}
+      DB_USER: ${POSTGRES_USER:-atlas}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      AI_API_KEY: ${AI_API_KEY:-}
+      AI_MODEL: ${AI_MODEL:-gemini-2.5-flash}
+      PANEL_TITLE: ${PANEL_TITLE:-پنل مدیریت اطلس}
+      PANEL_PASSWORD: ${PANEL_PASSWORD}
+      API_TOKEN: ${API_TOKEN:-}
+      N8N_WEBHOOK_URL: http://n8n:5678/webhook/atlas/call-intelligence
+      TRANSCRIPTION_API_URL: ${TRANSCRIPTION_API_URL:-}
+      UPLOAD_MAX_MB: ${UPLOAD_MAX_MB:-50}
+      RATE_LIMIT_RPM: ${RATE_LIMIT_RPM:-30}
+      CORS_ORIGINS: ${CORS_ORIGINS:-*}
+      PANEL_PUBLIC_URL: ${PANEL_PUBLIC_URL:-}
+      PUBLIC_DEMO_API: ${PUBLIC_DEMO_API:-true}
+      COMPANY_NAME: ${COMPANY_NAME:-اطلس}
+      BUSINESS_CONTEXT: ${BUSINESS_CONTEXT:-}
+      ATLAS_MANAGER_EMAIL: ${ATLAS_MANAGER_EMAIL:-}
+      MAILER_URL: http://mailer:8765
+      SMS_PROVIDER: ${SMS_PROVIDER:-iransms}
+      SMS_USERNAME: ${SMS_USERNAME:-}
+      SMS_PASSWORD: ${SMS_PASSWORD:-}
+      GHASEDAK_API_KEY: ${GHASEDAK_API_KEY:-}
+      SMS_LINE_NUMBER: ${SMS_LINE_NUMBER:-2170003727}
+      SMS_MANAGER_NUMBERS: ${SMS_MANAGER_NUMBERS:-}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      n8n:
+        condition: service_started
+    networks:
+      - atlas
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: atlas-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      PANEL_DOMAIN: ${PANEL_DOMAIN:-localhost}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./caddy/data:/data
+      - ./caddy/config:/config
+    depends_on:
+      - panel
+    networks:
+      - atlas
+
+networks:
+  atlas:
+    driver: bridge

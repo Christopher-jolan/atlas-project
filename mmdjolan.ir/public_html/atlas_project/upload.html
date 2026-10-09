@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Atlas — Upload & Analyze</title>
+<meta id="meta-description" name="description" content="Upload voice call recordings for Atlas AI analysis.">
+<link rel="icon" href="../logo.png">
+<script>try{var t=localStorage.getItem("theme")||(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");document.documentElement.setAttribute("data-theme",t);var l=localStorage.getItem("lang")||"en";document.documentElement.lang=l;document.documentElement.dir=l==="fa"?"rtl":"ltr"}catch(e){}</script>
+<link rel="stylesheet" href="../css/style.css">
+</head>
+<body data-page="atlasUpload">
+<nav class="atlas-subnav">
+  <a href="../atlas-project.html" data-i18n="subnavHome">Atlas Hub</a>
+  <a href="upload.html" class="active" data-i18n="subnavUpload">Upload</a>
+  <a href="dashboard.html" data-i18n="subnavDashboard">Dashboard</a>
+  <a href="workflows.html" data-i18n="subnavWorkflows">Workflows</a>
+  <a href="architecture.html" data-i18n="subnavArchitecture">Architecture</a>
+</nav>
+<header class="page-hero reveal">
+  <div class="hero-emoji">🎙️</div>
+  <div class="hero-sub" data-i18n="heroSub">Voice Upload · AI Transcription</div>
+  <h1 data-i18n="heroTitle">Upload & Analyze Calls</h1>
+  <p class="hero-desc" data-i18n="heroDesc">Upload a voice recording to run the full Atlas pipeline.</p>
+</header>
+<main class="page">
+  <a href="../atlas-project.html" class="back-btn" data-i18n="backLink">← Back to Atlas Hub</a>
+  <div class="section reveal">
+    <h2 data-i18n="uploadTitle">Voice File Upload</h2>
+    <div class="glass-card">
+      <form id="atlas-upload-form">
+        <div id="drop-zone" class="atlas-drop-zone" tabindex="0">
+          <p class="drop-title" data-i18n="dropTitle">Drag & drop your call recording here</p>
+          <p class="drop-hint" data-i18n="dropHint">Supported: MP3, M4A, WAV, OGG, WEBM — max 25 MB</p>
+          <input type="file" id="audio-file" class="atlas-file-input" name="file" accept=".mp3,.m4a,.mp4,.wav,.ogg,.webm,.aac,.flac,audio/*" multiple tabindex="-1" aria-hidden="true">
+          <button type="button" id="browse-btn" class="btn btn-outline" data-i18n="browseBtn">Browse Files</button>
+          <div id="file-info" class="file-info hidden"></div>
+        </div>
+        <div class="atlas-form-grid">
+          <div class="form-field"><label for="agent-name" data-i18n="agentLabel">Agent Name</label>
+            <input type="text" id="agent-name" name="agent_name" data-i18n-placeholder="agentPlaceholder"></div>
+          <div class="form-field"><label for="customer-name" data-i18n="customerLabel">Customer Name</label>
+            <input type="text" id="customer-name" name="customer_name" data-i18n-placeholder="customerPlaceholder"></div>
+          <div class="form-field"><label for="department" data-i18n="deptLabel">Department</label>
+            <select id="department" name="department">
+              <option value="auto" data-i18n="deptAuto">Auto Detect</option>
+              <option value="sales" data-i18n="deptSales">Sales</option>
+              <option value="support" data-i18n="deptSupport">Support</option>
+            </select>
+          </div>
+        </div>
+        <button type="submit" id="submit-btn" class="btn atlas-submit-btn" disabled data-i18n="submitBtn">Start Analysis</button>
+      </form>
+      <div id="upload-progress" class="atlas-progress hidden">
+        <div class="progress-steps">
+          <div class="progress-step" data-step="upload"><span data-i18n="stepUpload">Uploading</span></div>
+          <div class="progress-step" data-step="transcribe"><span data-i18n="stepTranscribe">Transcribing</span></div>
+          <div class="progress-step" data-step="analyze"><span data-i18n="stepAnalyze">Analyzing</span></div>
+          <div class="progress-step" data-step="done"><span data-i18n="stepDone">Complete</span></div>
+        </div>
+        <div class="progress-bar"><div id="progress-fill" class="progress-fill"></div></div>
+        <p id="progress-text" class="progress-text"></p>
+      </div>
+      <div id="upload-result" class="atlas-result hidden"></div>
+      <div id="upload-error" class="atlas-error hidden"></div>
+    </div>
+  </div>
+</main>
+<script src="../js/app.js"></script>
+<script src="../js/atlas.js"></script>
+</body>
+</html>

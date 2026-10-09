@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon, score, dept %}
+{% block title %}عملکرد کارکنان{% endblock %}
+{% block actions %}<a href="/export/staff" class="btn btn-ghost no-print">{{ icon("download", "icon-sm") }}<span>خروجی اکسل</span></a>{% endblock %}
+
+{% block content %}
+<div class="card">
+  <div class="table-wrap"><table class="responsive">
+    <thead><tr><th>اپراتور</th><th>بخش</th><th>تعداد تماس</th><th>کیفیت</th><th>رضایت</th><th>قصد خرید</th><th>فروش</th><th>پشتیبانی</th><th>نیاز به بررسی</th></tr></thead>
+    <tbody>
+    {% for s in items %}
+      <tr>
+        <td class="cell-strong">{{ s.agent_name }}</td>
+        <td>{{ dept(s.department) }}</td>
+        <td class="num">{{ s.total_calls | fa }}</td>
+        <td>{{ score(s.avg_quality) }}</td>
+        <td>{{ score(s.avg_satisfaction) }}</td>
+        <td>{{ score(s.avg_intent) }}</td>
+        <td class="num">{{ s.sales_calls | fa }}</td>
+        <td class="num">{{ s.support_calls | fa }}</td>
+        <td>{% if s.review_count %}<span class="badge bad">{{ s.review_count | fa }}</span>{% else %}<span class="cell-muted">۰</span>{% endif %}</td>
+      </tr>
+    {% else %}
+      <tr><td colspan="9" class="empty">هنوز داده‌ای ثبت نشده است.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+</div>
+{% endblock %}

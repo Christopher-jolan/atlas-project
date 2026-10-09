@@ -1,0 +1,241 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon, empty %}
+{% block title %}تنظیمات{% endblock %}
+
+{% block content %}
+{% set rule_types = {
+  "low_satisfaction": "رضایت مشتری کمتر از حد آستانه",
+  "staff_unsatisfied_count": "تعداد تماس ناراضی یک اپراتور در بازه زمانی",
+  "urgent_ticket": "تیکت فوری نیازمند بررسی",
+  "hot_lead_no_followup": "مشتری آماده خرید بدون پیگیری",
+} %}
+{% if saved == "rule" %}<div class="alert success">{{ icon("check", "icon-sm") }}قانون هشدار ذخیره شد.</div>
+{% elif saved %}<div class="alert success">{{ icon("check", "icon-sm") }}تنظیمات با موفقیت ذخیره شد.</div>{% endif %}
+{% if error == "logo" %}<div class="alert error">{{ icon("alert", "icon-sm") }}لوگو باید PNG، JPG، WEBP یا SVG و حداکثر ۳۰۰ کیلوبایت باشد.</div>{% endif %}
+
+<form method="post" action="/settings" enctype="multipart/form-data">
+<div class="grid-2 section-gap">
+  <div class="card">
+    <div class="card-head"><h2>{{ icon("palette") }}هویت سازمان</h2></div>
+    <p class="card-sub">نام، لوگو و رنگ در پنل، صفحه ورود و ایمیل‌های گزارش نمایش داده می‌شوند.</p>
+    <div class="field"><label for="company_name">نام شرکت</label>
+      <input type="text" id="company_name" name="company_name" class="input" value="{{ settings.company_name or '' }}" required maxlength="80"></div>
+    <div class="field"><label for="company_tagline">شعار یا توضیح کوتاه</label>
+      <input type="text" id="company_tagline" name="company_tagline" class="input" value="{{ settings.company_tagline or '' }}" maxlength="80" placeholder="مثلاً: هوش تماس و تحلیل مکالمات"></div>
+    <div class="form-row">
+      <div class="field"><label for="brand_color">رنگ سازمانی</label>
+        <input type="color" id="brand_color" name="brand_color" class="input" value="{{ settings.brand_color or '#4f46e5' }}"></div>
+      <div class="field"><label for="logo">لوگو</label>
+        <input type="file" id="logo" name="logo" class="input" accept="image/png,image/jpeg,image/webp,image/svg+xml">
+        <div class="hint">مربعی، حداکثر ۳۰۰ کیلوبایت</div></div>
+    </div>
+    {% if settings.logo_data %}
+      <div style="display:flex;align-items:center;gap:1rem">
+        <span class="brand-mark"><img src="{{ settings.logo_data }}" alt="لوگوی فعلی"></span>
+        <label class="check"><input type="checkbox" name="remove_logo"> حذف لوگوی فعلی</label>
+      </div>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <div class="card-head"><h2>{{ icon("bell") }}اطلاع‌رسانی به مدیران</h2></div>
+    <p class="card-sub">پس از تحلیل هر تماس، گزارش فارسی و خوانا برای این ایمیل‌ها ارسال می‌شود.</p>
+    <div class="field"><label for="notify_emails">ایمیل گیرندگان</label>
+      <input type="text" id="notify_emails" name="notify_emails" class="input input-ltr" dir="ltr" value="{{ settings.notify_emails or '' }}" placeholder="manager@company.com, sales@company.com">
+      <div class="hint">چند ایمیل را با ویرگول جدا کنید.</div></div>
+    <div class="field"><label for="notify_mode">چه تماس‌هایی گزارش شوند؟</label>
+      <select id="notify_mode" name="notify_mode" class="input">
+        <option value="all" {% if settings.notify_mode == 'all' %}selected{% endif %}>همه تماس‌ها</option>
+        <option value="important" {% if settings.notify_mode == 'important' %}selected{% endif %}>فقط تماس‌های مهم (آماده خرید، ناراضی، فوری)</option>
+        <option value="off" {% if settings.notify_mode == 'off' %}selected{% endif %}>ارسال نشود</option>
+      </select></div>
+    <button type="button" class="btn btn-ghost btn-sm" id="test-email">{{ icon("mail", "icon-sm") }}ارسال ایمیل آزمایشی</button>
+    <span class="hint" id="test-email-result" style="margin-inline-start:.5rem"></span>
+  </div>
+</div>
+
+<div class="card section-gap" id="sms">
+  <div class="card-head"><h2>{{ icon("message") }}پیامک (قاصدک)</h2><span class="spacer"></span>
+    <label class="check"><input type="checkbox" name="sms_enabled" {% if settings.sms_enabled != 'false' %}checked{% endif %}> فعال</label></div>
+  <p class="card-sub">عبارت «لغو۱۱» به‌صورت خودکار به انتهای همه پیامک‌ها اضافه می‌شود. پیامک‌ها بدون لینک ارسال می‌شوند.</p>
+  <div class="grid-2">
+    <div>
+      {% set provider = settings.sms_provider or 'iransms' %}
+      <div class="form-row">
+        <div class="field"><label for="sms_provider">سامانه پیامک</label>
+          <select id="sms_provider" name="sms_provider" class="input">
+            <option value="iransms" {% if provider == 'iransms' %}selected{% endif %}>قاصدک — کلید API (پیشنهادی)</option>
+            <option value="ghasedaksms" {% if provider == 'ghasedaksms' %}selected{% endif %}>قاصدک — نام کاربری و رمز (SOAP)</option>
+            <option value="ghasedak_me" {% if provider == 'ghasedak_me' %}selected{% endif %}>ghasedak.me</option>
+          </select></div>
+        <div class="field"><label for="sms_line_number">شماره خط ارسال</label>
+          <input type="text" id="sms_line_number" name="sms_line_number" class="input input-ltr" dir="ltr" inputmode="numeric" value="{{ settings.sms_line_number or '' }}">
+          <div class="hint">چند خط را با ویرگول جدا کنید؛ اگر خط اول نرسید، خط بعدی امتحان می‌شود.</div></div>
+      </div>
+      <div class="form-row" data-provider="ghasedaksms">
+        <div class="field"><label for="sms_username">نام کاربری</label>
+          <input type="text" id="sms_username" name="sms_username" class="input input-ltr" dir="ltr" autocomplete="off" value="{{ settings.sms_username or '' }}"></div>
+        <div class="field"><label for="sms_password">رمز عبور وب‌سرویس</label>
+          <input type="password" id="sms_password" name="sms_password" class="input input-ltr" dir="ltr" autocomplete="new-password"
+            placeholder="{% if settings.sms_password %}ذخیره شده — برای تغییر وارد کنید{% endif %}"></div>
+      </div>
+      <div class="field" data-provider="iransms ghasedak_me"><label for="sms_api_key">کلید API</label>
+        <input type="password" id="sms_api_key" name="sms_api_key" class="input input-ltr" dir="ltr" autocomplete="off"
+          placeholder="{% if settings.sms_api_key %}ذخیره شده — برای تغییر وارد کنید{% endif %}"></div>
+      <div class="field"><label for="sms_manager_numbers">موبایل مدیران</label>
+        <input type="text" id="sms_manager_numbers" name="sms_manager_numbers" class="input input-ltr" dir="ltr" value="{{ settings.sms_manager_numbers or '' }}" placeholder="09121234567, 09351234567">
+        <div class="hint">خلاصه بسیار کوتاه هر تماس برای این شماره‌ها پیامک می‌شود.</div></div>
+      <div class="field"><label for="sms_manager_mode">چه تماس‌هایی پیامک شوند؟</label>
+        <select id="sms_manager_mode" name="sms_manager_mode" class="input">
+          <option value="all" {% if settings.sms_manager_mode == 'all' %}selected{% endif %}>همه تماس‌ها</option>
+          <option value="important" {% if settings.sms_manager_mode == 'important' %}selected{% endif %}>فقط تماس‌های مهم</option>
+          <option value="off" {% if settings.sms_manager_mode == 'off' %}selected{% endif %}>ارسال نشود</option>
+        </select></div>
+    </div>
+    <div>
+      <div class="field">
+        <label class="check"><input type="checkbox" name="sms_customer_enabled" {% if settings.sms_customer_enabled == 'true' %}checked{% endif %}> پیامک تشکر برای مشتری (اگر شماره تماس موبایل باشد)</label></div>
+      <div class="field"><label for="sms_customer_text">متن پیامک مشتری</label>
+        <textarea id="sms_customer_text" name="sms_customer_text" class="input" rows="4" maxlength="300">{{ settings.sms_customer_text or '' }}</textarea>
+        <div class="hint" id="sms-counter"></div>
+        <div class="hint">هر شماره حداکثر یک بار در ۲۴ ساعت پیامک تشکر می‌گیرد.</div></div>
+    </div>
+  </div>
+  <div style="display:flex;flex-wrap:wrap;gap:.5rem;align-items:center">
+    <button type="button" class="btn btn-ghost btn-sm" id="test-sms">{{ icon("message", "icon-sm") }}ارسال پیامک آزمایشی به مدیر</button>
+    <button type="button" class="btn btn-ghost btn-sm" id="sms-credit">اعتبار حساب</button>
+    <span class="hint" id="sms-result"></span>
+  </div>
+  {% if sms_log %}
+  <div class="subhead" style="margin-top:1.25rem">آخرین پیامک‌ها</div>
+  <div class="table-wrap"><table class="responsive">
+    <thead><tr><th>زمان</th><th>نوع</th><th>گیرنده</th><th>متن</th><th>وضعیت</th></tr></thead>
+    <tbody>
+    {% for s in sms_log %}
+      <tr>
+        <td class="num">{{ s.created_at | jdate }}</td>
+        <td>{{ {"manager": "مدیر", "customer": "مشتری", "alert": "هشدار", "test": "آزمایشی"}.get(s.kind, s.kind) }}</td>
+        <td class="num" dir="ltr">{{ s.receptor | fa }}</td>
+        <td style="white-space:pre-line;max-width:28rem">{{ s.message }}</td>
+        <td>{% if s.success %}<span class="badge good">ارسال شد</span>{% else %}<span class="badge bad" title="{{ s.error }}">ناموفق</span>{% endif %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+  {% endif %}
+</div>
+
+<div class="card">
+  <div class="card-head"><h2>{{ icon("file") }}معرفی کسب‌وکار برای هوش مصنوعی</h2></div>
+  <p class="card-sub">هرچه دقیق‌تر بنویسید، تحلیل‌ها و اقدامات پیشنهادی به کار شما نزدیک‌تر می‌شود: محصولات و خدمات، روند فروش (مثلاً ارسال پیش‌فاکتور)، اصطلاحات رایج و نکاتی که برای مدیر مهم است.</p>
+  <textarea id="business_context" name="business_context" class="input" rows="6" placeholder="مثلاً: ما واردکننده و فروشنده تجهیزات صنعتی هستیم. مشتریان معمولاً استعلام قیمت می‌گیرند و پس از دریافت پیش‌فاکتور تصمیم می‌گیرند…">{{ settings.business_context or '' }}</textarea>
+</div>
+
+<div class="page-head"><span class="spacer"></span><button type="submit" class="btn">{{ icon("check", "icon-sm") }}ذخیره تنظیمات</button></div>
+</form>
+
+<div class="card" id="rules">
+  <div class="card-head"><h2>{{ icon("alert") }}قوانین هشدار</h2><span class="spacer"></span>
+    <button type="button" class="btn btn-ghost btn-sm" id="check-alerts">بررسی و ارسال هشدارها</button></div>
+  <p class="card-sub">وقتی شرایط زیر رخ دهد، ایمیل هشدار جداگانه ارسال می‌شود. <span id="check-result"></span></p>
+
+  {% if rules %}
+  <div class="table-wrap"><table class="responsive">
+    <thead><tr><th>نام</th><th>شرط</th><th>آستانه</th><th>بازه (دقیقه)</th><th>وضعیت</th><th></th></tr></thead>
+    <tbody>
+    {% for r in rules %}
+      <tr>
+        <td class="cell-strong">{{ r.name }}</td>
+        <td>{{ rule_types.get(r.rule_type, r.rule_type) }}</td>
+        <td class="num">{{ r.threshold | fa }}</td>
+        <td class="num">{{ r.time_window_minutes | fa }}</td>
+        <td>{% if r.enabled %}<span class="badge good">فعال</span>{% else %}<span class="badge">غیرفعال</span>{% endif %}</td>
+        <td data-label="">
+          <div style="display:flex;gap:.4rem;justify-content:flex-end">
+            <form method="post" action="/settings/rule/{{ r.id }}/toggle" class="inline-form"><button class="btn btn-ghost btn-sm">{% if r.enabled %}غیرفعال‌سازی{% else %}فعال‌سازی{% endif %}</button></form>
+            <form method="post" action="/settings/rule/{{ r.id }}/delete" class="inline-form" data-confirm="این قانون حذف شود؟"><button class="btn btn-danger btn-sm" aria-label="حذف">{{ icon("trash", "icon-sm") }}</button></form>
+          </div>
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+  {% else %}{{ empty("هنوز قانونی تعریف نشده است.", "bell") }}{% endif %}
+
+  <div class="subhead" style="margin-top:1.5rem">افزودن قانون جدید</div>
+  <form method="post" action="/settings/rule">
+    <div class="form-row">
+      <div class="field"><label for="r-name">نام قانون</label><input type="text" id="r-name" name="name" class="input" required placeholder="مثلاً: رضایت خیلی پایین"></div>
+      <div class="field"><label for="r-type">شرط</label>
+        <select id="r-type" name="rule_type" class="input">{% for k, v in rule_types.items() %}<option value="{{ k }}">{{ v }}</option>{% endfor %}</select></div>
+      <div class="field"><label for="r-th">آستانه</label><input type="number" id="r-th" name="threshold" class="input" value="40" min="1"></div>
+      <div class="field"><label for="r-tw">بازه زمانی (دقیقه)</label><input type="number" id="r-tw" name="time_window_minutes" class="input" value="60" min="1"></div>
+      <div class="field"><label for="r-email">ایمیل گیرنده</label><input type="text" id="r-email" name="email_to" class="input input-ltr" dir="ltr" placeholder="خالی = گیرندگان اصلی"></div>
+      <div class="field" style="align-self:end"><label class="check"><input type="checkbox" name="enabled" checked> فعال باشد</label></div>
+    </div>
+    <button type="submit" class="btn btn-ghost">{{ icon("plus", "icon-sm") }}افزودن قانون</button>
+  </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  var t = document.getElementById("test-email"), out = document.getElementById("test-email-result");
+  t.addEventListener("click", function () {
+    t.disabled = true; out.textContent = "در حال ارسال…"; out.style.color = "";
+    fetch("/api/test-email", { method: "POST", credentials: "same-origin" })
+      .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+      .then(function (res) {
+        out.textContent = res.ok ? "ارسال شد به " + res.d.sent_to : (res.d.detail || "ارسال ناموفق بود.");
+        out.style.color = res.ok ? "var(--good)" : "var(--bad)";
+      })
+      .catch(function () { out.textContent = "ارسال ناموفق بود."; out.style.color = "var(--bad)"; })
+      .finally(function () { t.disabled = false; });
+  });
+
+  var ta = document.getElementById("sms_customer_text"), counter = document.getElementById("sms-counter");
+  function count() {
+    var text = ta.value.trim() + "\nلغو11", n = text.length;
+    var parts = n <= 70 ? 1 : Math.ceil(n / 67);
+    counter.textContent = faNum(n) + " نویسه (با لغو۱۱) · " + faNum(parts) + " پیامک";
+  }
+  ta.addEventListener("input", count); count();
+
+  var ps = document.getElementById("sms_provider");
+  function toggleProvider() {
+    document.querySelectorAll("[data-provider]").forEach(function (el) {
+      el.classList.toggle("hidden", el.getAttribute("data-provider").split(" ").indexOf(ps.value) < 0);
+    });
+  }
+  ps.addEventListener("change", toggleProvider); toggleProvider();
+
+  var sr = document.getElementById("sms-result");
+  function call(btn, url, method, ok) {
+    btn.disabled = true; sr.textContent = "لطفاً صبر کنید…"; sr.style.color = "";
+    fetch(url, { method: method, credentials: "same-origin" })
+      .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+      .then(function (res) {
+        var good = res.ok && res.d.success !== false;
+        sr.textContent = good ? ok(res.d) : (res.d.detail || res.d.error || "درخواست ناموفق بود.");
+        sr.style.color = good ? "var(--good)" : "var(--bad)";
+      })
+      .catch(function () { sr.textContent = "درخواست ناموفق بود."; sr.style.color = "var(--bad)"; })
+      .finally(function () { btn.disabled = false; });
+  }
+  var ts = document.getElementById("test-sms"), cb = document.getElementById("sms-credit");
+  ts.addEventListener("click", function () { call(ts, "/api/test-sms", "POST", function (d) { return "ارسال شد به " + faNum(d.sent_to.join("، ")); }); });
+  cb.addEventListener("click", function () { call(cb, "/api/sms-credit", "GET", function (d) { return "اعتبار: " + faNum(Number(d.credit || 0).toLocaleString("en-US")) + " ریال"; }); });
+
+  var c = document.getElementById("check-alerts"), cr = document.getElementById("check-result");
+  c.addEventListener("click", function () {
+    c.disabled = true; cr.textContent = "در حال بررسی…";
+    fetch("/api/check-alerts", { credentials: "same-origin" })
+      .then(function (r) { return r.json(); })
+      .then(function (d) { cr.textContent = faNum(d.triggered) + " هشدار پیدا شد و " + faNum(d.sent) + " ایمیل و " + faNum(d.sms_sent || 0) + " پیامک ارسال شد."; })
+      .catch(function () { cr.textContent = "بررسی ناموفق بود."; })
+      .finally(function () { c.disabled = false; });
+  });
+})();
+</script>
+{% endblock %}

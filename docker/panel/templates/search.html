@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon, score, priority, dept, empty, search_bar %}
+{% block title %}جستجوی تماس‌ها{% endblock %}
+{% block actions %}<a href="/export/recent" class="btn btn-ghost no-print">{{ icon("download", "icon-sm") }}<span>خروجی اکسل</span></a>{% endblock %}
+
+{% block content %}
+<div class="card">
+  {{ search_bar("/search", q, "نام مشتری، شماره تلفن، اپراتور یا شناسه تماس…") }}
+  {% if q %}
+    {% if results %}
+    <p class="hint" style="margin-bottom:.75rem">{{ results | length | fa }} نتیجه برای «{{ q }}»</p>
+    <div class="table-wrap"><table class="responsive">
+      <thead><tr><th>مشتری</th><th>تلفن</th><th>اپراتور</th><th>بخش</th><th>خرید</th><th>رضایت</th><th>اولویت</th><th>تاریخ</th></tr></thead>
+      <tbody>
+      {% for c in results %}
+        <tr data-href="/calls/{{ c.call_id }}" class="{% if c.needs_human_review %}row-alert{% endif %}">
+          <td><a href="/calls/{{ c.call_id }}" class="cell-strong">{{ c.customer_name or "مشتری ناشناس" }}</a></td>
+          <td class="num" dir="ltr">{{ c.customer_phone | fa }}</td>
+          <td>{{ c.agent_name or "—" }}</td>
+          <td>{{ dept(c.department) }}</td>
+          <td>{{ score(c.purchase_intent_score) }}</td>
+          <td>{{ score(c.satisfaction_final_score) }}</td>
+          <td>{{ priority(c.ticket_priority) }}</td>
+          <td class="cell-muted num">{{ c.call_date | jdate }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table></div>
+    {% else %}{{ empty("نتیجه‌ای برای «" ~ q ~ "» پیدا نشد.", "search") }}{% endif %}
+  {% else %}
+    {{ empty("برای پیدا کردن تماس، نام مشتری، شماره تلفن یا نام اپراتور را جستجو کنید.", "search") }}
+  {% endif %}
+</div>
+{% endblock %}

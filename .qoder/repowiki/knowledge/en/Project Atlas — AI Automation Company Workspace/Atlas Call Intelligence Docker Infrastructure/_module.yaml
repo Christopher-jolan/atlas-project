@@ -1,0 +1,9 @@
+schema_version: 1
+module_path: docker_infrastructure
+title: Atlas Call Intelligence Docker Infrastructure
+scope:
+    - docker/
+source_files: []
+depends_on: []
+related_to:
+    - path: products

@@ -1,0 +1,1 @@
+Call Intelligence v1 uses Docker + docker-compose, n8n for workflow orchestration, PostgreSQL for storage, OpenAI-compatible LLM endpoints for transcription and analysis, and SMTP for manager notifications.

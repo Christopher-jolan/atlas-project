@@ -1,0 +1,12 @@
+﻿.env
+.env.*
+!.env.example
+docker/.env
+docker/caddy/
+docker/postgres/data/
+**/__pycache__/
+*.pyc
+*.log
+*.rar
+docker/scripts/_render/
+mmdjolan.ir/backup-before-redesign/

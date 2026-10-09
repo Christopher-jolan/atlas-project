@@ -1,0 +1,10 @@
+schema_version: 1
+module_path: products
+title: Atlas Product Portfolio Documentation
+scope:
+    - 03_Products/
+source_files: []
+depends_on: []
+related_to:
+    - path: company_strategy_market
+    - path: docker_infrastructure

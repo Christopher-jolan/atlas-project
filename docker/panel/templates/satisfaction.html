@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon, score %}
+{% block title %}رضایت مشتریان{% endblock %}
+{% block subtitle %}<div class="subtitle-top">نرخ رضایت: درصد تماس‌هایی که امتیاز رضایت ۷۰ یا بیشتر داشته‌اند.</div>{% endblock %}
+{% block actions %}<a href="/export/satisfaction" class="btn btn-ghost no-print">{{ icon("download", "icon-sm") }}<span>خروجی اکسل</span></a>{% endblock %}
+
+{% block content %}
+<div class="card">
+  <div class="table-wrap"><table class="responsive">
+    <thead><tr><th>اپراتور</th><th>نرخ رضایت</th><th>میانگین رضایت</th><th>تعداد تماس</th><th>مشتری راضی</th><th>مشتری ناراضی</th></tr></thead>
+    <tbody>
+    {% for s in items %}
+      <tr>
+        <td class="cell-strong">{{ s.agent_name }}</td>
+        <td style="min-width:160px">
+          <div class="meter"><span class="meter-track"><span class="meter-fill {{ s.satisfaction_rate_percent | tone }}" style="width: {{ (s.satisfaction_rate_percent or 0) | int }}%"></span></span>
+          <span class="meter-value">{% if s.satisfaction_rate_percent is not none %}{{ s.satisfaction_rate_percent | fa }}٪{% else %}—{% endif %}</span></div>
+        </td>
+        <td>{{ score(s.avg_satisfaction) }}</td>
+        <td class="num">{{ s.total_calls | fa }}</td>
+        <td class="num">{{ s.satisfied_count | fa }}</td>
+        <td>{% if s.unhappy_count %}<span class="badge bad">{{ s.unhappy_count | fa }}</span>{% else %}<span class="cell-muted">۰</span>{% endif %}</td>
+      </tr>
+    {% else %}
+      <tr><td colspan="6" class="empty">هنوز داده‌ای ثبت نشده است.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+</div>
+{% endblock %}

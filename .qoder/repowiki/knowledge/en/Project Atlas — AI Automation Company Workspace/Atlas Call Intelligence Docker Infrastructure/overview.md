@@ -1,0 +1,1 @@
+Docker Compose-based deployment of the Atlas call intelligence system, orchestrating PostgreSQL, n8n workflows, a FastAPI admin panel, and a Python SMTP mailer service.

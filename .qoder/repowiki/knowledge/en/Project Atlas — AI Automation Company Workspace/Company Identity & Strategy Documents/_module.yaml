@@ -1,0 +1,10 @@
+schema_version: 1
+module_path: company_strategy_market
+title: Company Identity & Strategy Documents
+scope:
+    - 00_Company/
+    - 01_Strategy/
+source_files: []
+depends_on: []
+related_to:
+    - path: products

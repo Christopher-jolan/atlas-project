@@ -1,0 +1,1 @@
+None — documents are authored directly as `.md` files and can be read in any Markdown viewer or editor.

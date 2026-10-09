@@ -1,0 +1,104 @@
+{% from "_macros.html" import icon %}
+{%- set company = brand.company_name or "اطلس" -%}
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="theme-color" content="{{ brand.brand_color or '#4f46e5' }}">
+  <title>ورود | {{ company }}</title>
+  <link rel="preload" href="/static/fonts/Vazirmatn-Variable.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/static/css/style.css?v={{ asset_v }}">
+  {% if brand.logo_data %}<link rel="icon" href="{{ brand.logo_data }}">{% endif %}
+  <style>:root { --brand: {{ brand.brand_color or '#4f46e5' }}; }</style>
+  <script>
+    (function () {
+      var t = localStorage.getItem("atlas-theme");
+      if (!t) t = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+      document.documentElement.setAttribute("data-theme", t);
+    })();
+  </script>
+</head>
+<body>
+<div class="auth-page">
+  <section class="auth-panel">
+    <div class="auth-card">
+      <div class="brand">
+        <span class="brand-mark">{% if brand.logo_data %}<img src="{{ brand.logo_data }}" alt="">{% else %}{{ company[:1] }}{% endif %}</span>
+        <span class="brand-text"><strong>{{ company }}</strong><small>{{ brand.company_tagline or "هوش تماس و تحلیل مکالمات" }}</small></span>
+      </div>
+
+      <h1>خوش آمدید</h1>
+      <p class="lead">برای ورود به پنل مدیریت، نام کاربری و رمز عبور خود را وارد کنید.</p>
+
+      {% if error == "rate" %}
+        <div class="alert error" role="alert">{{ icon("alert", "icon-sm") }}تعداد تلاش‌های ناموفق زیاد بود. چند دقیقه دیگر دوباره امتحان کنید.</div>
+      {% elif error %}
+        <div class="alert error" role="alert">{{ icon("alert", "icon-sm") }}نام کاربری یا رمز عبور اشتباه است.</div>
+      {% elif logged_out %}
+        <div class="alert success">{{ icon("check", "icon-sm") }}با موفقیت از حساب خارج شدید.</div>
+      {% endif %}
+
+      <form method="post" action="/login" id="login-form" autocomplete="on">
+        <input type="hidden" name="next" value="{{ next }}">
+        <div class="field">
+          <label for="username">نام کاربری</label>
+          <div class="input-group">
+            {{ icon("user", "icon-sm") }}
+            <input type="text" id="username" name="username" class="input input-ltr" required autofocus
+                   autocomplete="username" autocapitalize="none" spellcheck="false" dir="ltr">
+          </div>
+        </div>
+        <div class="field">
+          <label for="password">رمز عبور</label>
+          <div class="input-group has-toggle">
+            {{ icon("lock", "icon-sm") }}
+            <input type="password" id="password" name="password" class="input input-ltr" required
+                   autocomplete="current-password" dir="ltr">
+            <button type="button" class="toggle-pass" id="toggle-pass" aria-label="نمایش رمز عبور">{{ icon("eye", "icon-sm") }}</button>
+          </div>
+        </div>
+        <div class="auth-row">
+          <label class="check"><input type="checkbox" name="remember" checked> مرا به خاطر بسپار</label>
+        </div>
+        <button type="submit" class="btn btn-block" id="login-btn">ورود به پنل</button>
+      </form>
+
+      <p class="auth-foot">اتصال شما رمزنگاری‌شده است · © {{ now_fn().year }} {{ company }}</p>
+    </div>
+  </section>
+
+  <aside class="auth-hero" aria-hidden="true">
+    <div class="wave">
+      {% for d in [0.0, 0.15, 0.3, 0.45, 0.6, 0.2, 0.5, 0.1, 0.35, 0.65, 0.25, 0.55, 0.05, 0.4, 0.7, 0.3, 0.15, 0.5, 0.25, 0.6] %}
+      <i style="animation-delay: {{ d }}s"></i>
+      {% endfor %}
+    </div>
+    <h2>هر تماس، یک گزارش مدیریتی دقیق</h2>
+    <p>مکالمات تیم فروش و پشتیبانی به‌صورت خودکار رونویسی و تحلیل می‌شوند؛ نیاز مشتری، احتمال خرید، رضایت و اقدامات بعدی را بدون گوش دادن به حتی یک دقیقه از تماس ببینید.</p>
+    <div class="hero-cards">
+      <div class="hero-card"><b>۱۰۰٪</b><span>تماس‌ها تحلیل می‌شوند</span></div>
+      <div class="hero-card"><b>&lt; ۱ دقیقه</b><span>زمان تحلیل هر تماس</span></div>
+      <div class="hero-card"><b>فارسی</b><span>گزارش روان و قابل اقدام</span></div>
+    </div>
+  </aside>
+</div>
+<script>
+  (function () {
+    var btn = document.getElementById("toggle-pass"), input = document.getElementById("password");
+    btn.addEventListener("click", function () {
+      var show = input.type === "password";
+      input.type = show ? "text" : "password";
+      btn.setAttribute("aria-label", show ? "پنهان کردن رمز عبور" : "نمایش رمز عبور");
+      btn.style.color = show ? "var(--brand)" : "";
+      input.focus();
+    });
+    document.getElementById("login-form").addEventListener("submit", function () {
+      var b = document.getElementById("login-btn");
+      b.disabled = true; b.textContent = "در حال ورود…";
+    });
+  })();
+</script>
+</body>
+</html>

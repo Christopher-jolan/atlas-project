@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon %}
+{% block title %}تحلیل هوشمند{% endblock %}
+{% block subtitle %}<div class="subtitle-top">جمع‌بندی مدیریتی از آخرین تماس‌ها، مشتریان و عملکرد تیم، به زبان ساده.</div>{% endblock %}
+{% block actions %}<button type="button" class="btn no-print" id="run-btn">{{ icon("sparkles", "icon-sm") }}<span>تهیه تحلیل جدید</span></button>{% endblock %}
+
+{% block content %}
+<div class="card">
+  <div id="ai-empty" class="empty-state">
+    {{ icon("sparkles") }}
+    <p>برای دریافت جمع‌بندی هوشمند از وضعیت فروش، رضایت مشتریان و عملکرد تیم، روی «تهیه تحلیل جدید» بزنید.</p>
+  </div>
+  <div id="ai-loading" class="empty-state hidden">
+    <div class="steps" style="max-width:280px;margin:0 auto 1rem;grid-template-columns:1fr"><div class="step active"><i></i></div></div>
+    <p>در حال بررسی داده‌ها و نوشتن تحلیل… معمولاً کمتر از یک دقیقه طول می‌کشد.</p>
+  </div>
+  <div id="ai-error" class="alert error hidden" role="alert"></div>
+  <article id="ai-result" class="prose hidden"></article>
+  <p id="ai-time" class="hint hidden" style="margin-top:1rem"></p>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  function inline(s) {
+    return s.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>").replace(/(^|[^*])\*(?!\s)(.+?)\*(?!\*)/g, "$1<em>$2</em>");
+  }
+  function markdown(text) {
+    var lines = escapeHtml(text).split(/\r?\n/), html = [], list = null;
+    function close() { if (list) { html.push("</" + list + ">"); list = null; } }
+    lines.forEach(function (raw) {
+      var line = raw.trim(), m;
+      if (!line) { close(); return; }
+      if ((m = line.match(/^#{1,6}\s+(.*)$/))) { close(); html.push("<h3>" + inline(m[1]) + "</h3>"); return; }
+      if ((m = line.match(/^[-*•]\s+(.*)$/))) { if (list !== "ul") { close(); html.push("<ul>"); list = "ul"; } html.push("<li>" + inline(m[1]) + "</li>"); return; }
+      if ((m = line.match(/^[\d۰-۹]+[.)]\s+(.*)$/))) { if (list !== "ol") { close(); html.push("<ol>"); list = "ol"; } html.push("<li>" + inline(m[1]) + "</li>"); return; }
+      if (/^\*\*[^*]+\*\*:?$/.test(line)) { close(); html.push("<h3>" + line.replace(/\*\*/g, "").replace(/:$/, "") + "</h3>"); return; }
+      close(); html.push("<p>" + inline(line) + "</p>");
+    });
+    close();
+    return html.join("");
+  }
+
+  var btn = document.getElementById("run-btn");
+  var el = function (id) { return document.getElementById(id); };
+  btn.addEventListener("click", function () {
+    btn.disabled = true;
+    ["ai-empty", "ai-result", "ai-error", "ai-time"].forEach(function (id) { el(id).classList.add("hidden"); });
+    el("ai-loading").classList.remove("hidden");
+    fetch("/api/ai-insights", { credentials: "same-origin" })
+      .then(function (r) { if (!r.ok) throw new Error(); return r.json(); })
+      .then(function (data) {
+        el("ai-result").innerHTML = markdown(data.insights || "تحلیلی دریافت نشد.");
+        el("ai-result").classList.remove("hidden");
+        var now = new Date();
+        el("ai-time").textContent = "تهیه‌شده در ساعت " + faNum(now.getHours() + ":" + String(now.getMinutes()).padStart(2, "0"));
+        el("ai-time").classList.remove("hidden");
+      })
+      .catch(function () {
+        el("ai-error").textContent = "تهیه تحلیل ناموفق بود. چند لحظه دیگر دوباره تلاش کنید.";
+        el("ai-error").classList.remove("hidden");
+      })
+      .finally(function () { el("ai-loading").classList.add("hidden"); btn.disabled = false; });
+  });
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,185 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon %}
+{% block title %}تحلیل تماس جدید{% endblock %}
+{% block subtitle %}<div class="subtitle-top">فایل صوتی تماس را آپلود کنید؛ گزارش کامل در کمتر از یک دقیقه آماده می‌شود.</div>{% endblock %}
+
+{% block content %}
+<div class="grid-3">
+  <div class="card span-2">
+    <form id="upload-form" novalidate>
+      <div class="dropzone" id="dropzone" role="button" tabindex="0" aria-controls="file" aria-label="انتخاب یا رها کردن فایل صوتی">
+        <div class="dropzone-body">
+          <span class="dropzone-icon" aria-hidden="true">{{ icon("upload") }}</span>
+          <strong id="drop-title">فایل صوتی را اینجا رها کنید یا برای انتخاب بزنید</strong>
+          <small id="drop-sub">MP3، M4A، WAV، OGG، AAC، FLAC، WEBM · حداکثر {{ max_mb | fa }} مگابایت · تا ۱۰ فایل</small>
+        </div>
+        <input type="file" id="file" name="file" class="dropzone-file" accept=".mp3,.m4a,.mp4,.wav,.ogg,.webm,.aac,.flac,audio/*" multiple tabindex="-1">
+      </div>
+
+      <div class="form-row" style="margin-top:1.25rem">
+        <div class="field"><label for="agent_name">نام اپراتور</label>
+          <input type="text" id="agent_name" name="agent_name" class="input" placeholder="مثلاً: سارا احمدی" autocomplete="off"></div>
+        <div class="field"><label for="customer_name">نام مشتری</label>
+          <input type="text" id="customer_name" name="customer_name" class="input" placeholder="اختیاری" autocomplete="off"></div>
+      </div>
+      <div class="form-row">
+        <div class="field"><label for="customer_phone">شماره تماس مشتری</label>
+          <input type="tel" id="customer_phone" name="customer_phone" class="input input-ltr" dir="ltr" placeholder="09121234567" autocomplete="off">
+          <div class="hint">اگر موبایل باشد، پیامک تشکر برای مشتری ارسال می‌شود.</div></div>
+        <div class="field"><label for="department">نوع تماس</label>
+          <select id="department" name="department" class="input">
+            <option value="auto">تشخیص خودکار</option>
+            <option value="sales">فروش</option>
+            <option value="support">پشتیبانی</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="error-box" class="alert error hidden" role="alert"></div>
+      <button type="submit" class="btn btn-block" id="submit-btn">{{ icon("sparkles", "icon-sm") }}شروع تحلیل</button>
+
+      <div id="progress" class="hidden" aria-live="polite">
+        <div class="steps">
+          <div class="step" data-step="0"><i></i>ارسال فایل</div>
+          <div class="step" data-step="1"><i></i>رونویسی صدا</div>
+          <div class="step" data-step="2"><i></i>تحلیل هوشمند</div>
+          <div class="step" data-step="3"><i></i>ذخیره و اطلاع‌رسانی</div>
+        </div>
+        <p class="hint" id="progress-text" style="text-align:center">در حال ارسال فایل…</p>
+      </div>
+    </form>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><h2>{{ icon("list") }}برای بهترین نتیجه</h2></div>
+    <ul class="list">
+      <li>فایل کامل تماس را آپلود کنید؛ مکالمات طولانی هم پشتیبانی می‌شوند.</li>
+      <li>نام اپراتور را وارد کنید تا در گزارش عملکرد کارکنان ثبت شود.</li>
+      <li>پس از پایان تحلیل، گزارش فارسی برای ایمیل‌های تعریف‌شده در تنظیمات ارسال می‌شود.</li>
+      <li>متن کامل مکالمه و جزئیات تحلیل در صفحه هر تماس در دسترس است.</li>
+    </ul>
+  </div>
+</div>
+
+<div id="results"></div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  var MAX_MB = {{ max_mb | int }};
+  var form = document.getElementById("upload-form"), input = document.getElementById("file");
+  var zone = document.getElementById("dropzone"), btn = document.getElementById("submit-btn");
+  var errBox = document.getElementById("error-box"), progress = document.getElementById("progress");
+  var progressText = document.getElementById("progress-text"), results = document.getElementById("results");
+  var timers = [];
+
+  function showFiles() {
+    var files = input.files;
+    if (!files.length) return;
+    zone.classList.add("has-file");
+    var total = 0; for (var i = 0; i < files.length; i++) total += files[i].size;
+    document.getElementById("drop-title").textContent = files.length === 1 ? files[0].name : faNum(files.length) + " فایل انتخاب شد";
+    document.getElementById("drop-sub").textContent = faNum((total / 1048576).toFixed(1)) + " مگابایت · برای تغییر دوباره بزنید";
+  }
+  input.addEventListener("change", showFiles);
+  zone.addEventListener("click", function () { input.click(); });
+  zone.addEventListener("keydown", function (e) {
+    if (e.key === "Enter" || e.key === " ") { e.preventDefault(); input.click(); }
+  });
+  ["dragenter", "dragover"].forEach(function (ev) { zone.addEventListener(ev, function (e) { e.preventDefault(); zone.classList.add("drag"); }); });
+  ["dragleave", "drop"].forEach(function (ev) { zone.addEventListener(ev, function (e) { e.preventDefault(); zone.classList.remove("drag"); }); });
+  zone.addEventListener("drop", function (e) { if (e.dataTransfer.files.length) { input.files = e.dataTransfer.files; showFiles(); } });
+
+  function setStep(n, text) {
+    document.querySelectorAll(".step").forEach(function (s) {
+      var i = +s.dataset.step;
+      s.classList.toggle("done", i < n); s.classList.toggle("active", i === n);
+    });
+    if (text) progressText.textContent = text;
+  }
+  function fail(msg) {
+    errBox.textContent = msg; errBox.classList.remove("hidden");
+    progress.classList.add("hidden"); btn.disabled = false;
+    timers.forEach(clearTimeout); timers = [];
+  }
+
+  function scoreChip(label, v) {
+    var tone = v == null ? "muted" : v >= 70 ? "good" : v >= 45 ? "mid" : "bad";
+    return '<div><div class="ring ' + tone + '" style="--v:' + (v || 0) + '"><b>' + faNum(v) + '</b></div><span>' + label + '</span></div>';
+  }
+  function renderResult(r, title) {
+    if (!r.success) {
+      return '<div class="card"><div class="alert error" style="margin:0">' + escapeHtml((title ? title + " — " : "") + (r.error || "تحلیل ناموفق بود.")) + '</div></div>';
+    }
+    var actions = (r.actions || []).map(function (a) { return "<li>" + escapeHtml(a) + "</li>"; }).join("");
+    var s = r.scores || {};
+    return '<div class="card">' +
+      '<div class="card-head"><h2>' + '{{ icon("check") | replace("\n", "") }}' + escapeHtml(title || "تحلیل تماس آماده است") + '</h2><span class="spacer"></span>' +
+      '<span class="badge brand">' + escapeHtml(r.department_label || "") + '</span>' +
+      (r.priority_label && r.priority_label !== "—" ? '<span class="badge">اولویت: ' + escapeHtml(r.priority_label) + '</span>' : '') +
+      (r.email_sent ? '<span class="badge good">ایمیل ارسال شد</span>' : '') +
+      (r.sms_sent ? '<span class="badge good">پیامک مدیر ارسال شد</span>' : '') +
+      (r.customer_sms_sent ? '<span class="badge good">پیامک مشتری ارسال شد</span>' : '') + '</div>' +
+      '<div class="grid-3" style="align-items:start">' +
+        '<div class="span-2">' +
+          '<div class="subhead">خلاصه تماس</div><p class="summary-box">' + escapeHtml(r.summary || "خلاصه‌ای ثبت نشد.") + '</p>' +
+          (actions ? '<div class="subhead">اقدامات پیش رو</div><ol class="actions-list">' + actions + '</ol>' : '') +
+        '</div>' +
+        '<div class="rings">' + scoreChip("قصد خرید", s.purchase_intent) + scoreChip("رضایت", s.satisfaction) + scoreChip("کیفیت اپراتور", s.agent_quality) + '</div>' +
+      '</div>' +
+      '<p style="margin-top:1.25rem"><a class="btn" href="/calls/' + encodeURIComponent(r.call_id) + '">مشاهده گزارش کامل</a></p>' +
+    '</div>';
+  }
+
+  form.addEventListener("submit", function (e) {
+    e.preventDefault();
+    errBox.classList.add("hidden");
+    var files = input.files;
+    if (!files.length) return fail("لطفاً ابتدا فایل صوتی را انتخاب کنید.");
+    if (files.length > 10) return fail("حداکثر ۱۰ فایل را می‌توانید همزمان آپلود کنید.");
+    for (var i = 0; i < files.length; i++) {
+      if (files[i].size > MAX_MB * 1048576) return fail("حجم «" + files[i].name + "» بیش از " + faNum(MAX_MB) + " مگابایت است.");
+    }
+
+    var batch = files.length > 1, fd = new FormData();
+    if (batch) { for (var j = 0; j < files.length; j++) fd.append("files", files[j]); }
+    else fd.append("file", files[0]);
+    ["agent_name", "customer_name", "customer_phone", "department"].forEach(function (k) { fd.append(k, document.getElementById(k).value); });
+
+    btn.disabled = true; progress.classList.remove("hidden"); results.innerHTML = "";
+    setStep(0, "در حال ارسال فایل… ۰٪");
+
+    var xhr = new XMLHttpRequest();
+    xhr.open("POST", batch ? "/api/upload-batch" : "/api/upload-voice");
+    xhr.upload.onprogress = function (ev) {
+      if (ev.lengthComputable) setStep(0, "در حال ارسال فایل… " + faNum(Math.round(ev.loaded / ev.total * 100)) + "٪");
+    };
+    xhr.upload.onload = function () {
+      setStep(1, "در حال تبدیل صدا به متن؛ برای تماس‌های طولانی ممکن است تا یک دقیقه طول بکشد…");
+      timers.push(setTimeout(function () { setStep(2, "هوش مصنوعی در حال تحلیل مکالمه است…"); }, 25000));
+      timers.push(setTimeout(function () { setStep(3, "در حال ذخیره گزارش و ارسال ایمیل…"); }, 50000));
+    };
+    xhr.onerror = function () { fail("ارتباط با سرور قطع شد. اتصال اینترنت را بررسی و دوباره تلاش کنید."); };
+    xhr.onload = function () {
+      var data = {};
+      try { data = JSON.parse(xhr.responseText); } catch (err) {}
+      if (xhr.status === 401) { window.location = "/login?next=/upload"; return; }
+      if (xhr.status >= 400) return fail(data.detail || "تحلیل با خطا مواجه شد. دوباره تلاش کنید.");
+      timers.forEach(clearTimeout); timers = [];
+      setStep(4, ""); progress.classList.add("hidden"); btn.disabled = false;
+      if (batch) {
+        results.innerHTML = '<div class="alert info">' + faNum(data.succeeded) + " از " + faNum(data.total) + " فایل با موفقیت تحلیل شد.</div>" +
+          (data.results || []).map(function (r) { return renderResult(r, r.filename); }).join("");
+      } else {
+        results.innerHTML = renderResult(data);
+      }
+      results.scrollIntoView({ behavior: "smooth", block: "start" });
+      form.reset(); zone.classList.remove("has-file");
+      document.getElementById("drop-title").textContent = "فایل بعدی را اینجا رها کنید یا برای انتخاب بزنید";
+    };
+    xhr.send(fd);
+  });
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,26 @@
+(panel_proxy) {
+	encode zstd gzip
+	header {
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+		X-Frame-Options SAMEORIGIN
+		-Server
+	}
+	reverse_proxy panel:8080 {
+		transport http {
+			read_timeout 15m
+			write_timeout 15m
+			dial_timeout 10s
+		}
+	}
+}
+
+{$PANEL_DOMAIN} {
+	import panel_proxy
+	header Strict-Transport-Security "max-age=31536000"
+}
+
+# Plain-HTTP access by IP stays available as a fallback.
+:80 {
+	import panel_proxy
+}

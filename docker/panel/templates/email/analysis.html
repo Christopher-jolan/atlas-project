@@ -1,0 +1,104 @@
+{%- macro scorebox(title, value) -%}
+{%- set t = value | tone -%}
+{%- set c = {"good": "#0f9f6e", "mid": "#c27c0e", "bad": "#dc3545"}.get(t, "#8a93a6") -%}
+{%- set bg = {"good": "#e3f7ef", "mid": "#fdf3dc", "bad": "#fde8ea"}.get(t, "#f4f6fb") -%}
+<td width="33%" style="padding:6px;">
+  <div style="background:{{ bg }};border-radius:12px;padding:14px 8px;text-align:center;">
+    <div style="font-size:26px;font-weight:800;color:{{ c }};line-height:1.3;">{{ value | fa }}</div>
+    <div style="font-size:12px;color:#4b5567;">{{ title }}</div>
+  </div>
+</td>
+{%- endmacro -%}
+{%- macro items(title, list, dot) -%}
+{% if list %}
+<tr><td style="padding:6px 28px 0;">
+  <div style="font-size:14px;font-weight:700;color:#121826;margin:14px 0 6px;">{{ title }}</div>
+  {% for it in list %}<div style="font-size:14px;line-height:2;color:#2b3445;">{{ dot }} {{ it }}</div>{% endfor %}
+</td></tr>
+{% endif %}
+{%- endmacro -%}
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>{{ headline }}</title></head>
+<body style="margin:0;padding:0;background:#f4f6fb;font-family:Vazirmatn,Tahoma,'Segoe UI',Arial,sans-serif;direction:rtl;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6fb;padding:24px 10px;">
+<tr><td align="center">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:620px;background:#ffffff;border-radius:16px;overflow:hidden;border:1px solid #e6e9f2;text-align:right;direction:rtl;">
+
+  <tr><td style="background:{{ color }};padding:22px 28px;color:#ffffff;">
+    <div style="font-size:13px;opacity:.9;">{{ company }} · گزارش تحلیل تماس</div>
+    <div style="font-size:21px;font-weight:800;margin-top:4px;line-height:1.6;">{{ headline }}</div>
+    <div style="font-size:13px;opacity:.92;margin-top:4px;">
+      {{ call.customer_name or "مشتری ناشناس" }}{% if call.customer_phone %} · <span dir="ltr">{{ call.customer_phone | fa }}</span>{% endif %}
+      · اپراتور: {{ call.agent_name or "—" }} · {{ call.call_date | jdate(with_time=True) }}
+    </div>
+  </td></tr>
+
+  {% if call.needs_human_review %}
+  <tr><td style="padding:18px 28px 0;">
+    <div style="background:#fdf3dc;color:#8a5a06;border-radius:10px;padding:12px 14px;font-size:14px;line-height:1.9;">
+      <b>نیاز به بررسی مدیر:</b> {{ v.review_reason or "این تماس برای پیگیری انسانی علامت‌گذاری شده است." }}
+    </div>
+  </td></tr>
+  {% endif %}
+
+  <tr><td style="padding:20px 28px 0;">
+    <div style="font-size:14px;font-weight:700;color:#121826;margin-bottom:6px;">خلاصه تماس</div>
+    <div style="font-size:15px;line-height:2.1;color:#2b3445;">{{ v.summary or "خلاصه‌ای ثبت نشد." }}</div>
+  </td></tr>
+
+  {% if v.actions %}
+  <tr><td style="padding:16px 28px 0;">
+    <div style="font-size:14px;font-weight:700;color:#121826;margin-bottom:8px;">اقدامات پیش رو</div>
+    {% for a in v.actions %}
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:8px;"><tr>
+      <td width="34" valign="top"><div style="width:26px;height:26px;border-radius:8px;background:{{ color }};color:#fff;text-align:center;line-height:26px;font-size:13px;font-weight:700;">{{ loop.index | fa }}</div></td>
+      <td style="background:#f7f8fc;border:1px solid #e6e9f2;border-radius:10px;padding:8px 12px;font-size:14px;line-height:1.9;color:#121826;font-weight:600;">{{ a }}</td>
+    </tr></table>
+    {% endfor %}
+    {% if v.follow_up_date %}<div style="font-size:12px;color:#8a93a6;">مهلت پیگیری: {{ v.follow_up_date | jdate }}</div>{% endif %}
+  </td></tr>
+  {% endif %}
+
+  <tr><td style="padding:16px 22px 0;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
+      {{ scorebox("قصد خرید", call.purchase_intent_score) }}
+      {{ scorebox("رضایت مشتری", call.satisfaction_final_score) }}
+      {{ scorebox("کیفیت اپراتور", call.agent_quality_score) }}
+    </tr></table>
+  </td></tr>
+
+  <tr><td style="padding:12px 28px 0;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="font-size:13px;color:#4b5567;line-height:2.1;">
+      <tr><td width="45%">بخش</td><td style="color:#121826;font-weight:600;">{{ call.department | label('department') }}</td></tr>
+      <tr><td>اولویت پیگیری</td><td style="color:#121826;font-weight:600;">{{ call.ticket_priority | label('priority') }}</td></tr>
+      <tr><td>احساس مشتری</td><td style="color:#121826;font-weight:600;">{{ v.sentiment }}</td></tr>
+      {% if v.sales.applicable %}
+      <tr><td>مرحله خرید</td><td style="color:#121826;font-weight:600;">{{ v.sales.stage }}</td></tr>
+      {% if v.sales.close_prob is not none %}<tr><td>احتمال بستن قرارداد</td><td style="color:#121826;font-weight:600;">{{ v.sales.close_prob | fa }}٪</td></tr>{% endif %}
+      {% endif %}
+      {% if v.support.applicable %}
+      <tr><td>وضعیت حل مشکل</td><td style="color:#121826;font-weight:600;">{{ v.support.resolution }}</td></tr>
+      <tr><td>ریسک از دست دادن مشتری</td><td style="color:#121826;font-weight:600;">{{ v.support.risk }}</td></tr>
+      {% endif %}
+    </table>
+  </td></tr>
+
+  {{ items("نیازهای مشتری", v.needs, "•") }}
+  {{ items("نگرانی‌ها و موانع خرید", v.sales.objections + v.pain_points, "•") }}
+  {{ items("نکته برای بهبود عملکرد اپراتور", v.agent.improvements[:3], "•") }}
+
+  {% if panel_link %}
+  <tr><td align="center" style="padding:26px 28px 6px;">
+    <a href="{{ panel_link }}" style="display:inline-block;background:{{ color }};color:#ffffff;text-decoration:none;font-weight:700;font-size:15px;padding:12px 28px;border-radius:10px;">مشاهده گزارش کامل و متن مکالمه</a>
+  </td></tr>
+  {% endif %}
+
+  <tr><td style="padding:22px 28px;color:#8a93a6;font-size:12px;line-height:1.9;border-top:1px solid #eef0f6;margin-top:18px;">
+    این گزارش به‌صورت خودکار پس از تحلیل تماس برای مدیران {{ company }} ارسال شده است. برای تغییر گیرندگان یا نوع گزارش‌ها به بخش تنظیمات پنل مراجعه کنید.
+  </td></tr>
+</table>
+</td></tr>
+</table>
+</body>
+</html>

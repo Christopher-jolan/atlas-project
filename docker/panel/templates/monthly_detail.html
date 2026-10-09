@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon, score, bullets, empty %}
+{% block title %}گزارش ماهانه {{ report.report_month | jmonth }}{% endblock %}
+{% block subtitle %}<div class="subtitle-top">{{ report.total_calls | fa }} تماس · تهیه‌شده در {{ report.created_at | jdate(with_time=True) }}</div>{% endblock %}
+{% block actions %}
+  <a href="/monthly-reports" class="btn btn-ghost no-print">همه گزارش‌ها</a>
+  <button type="button" class="btn btn-ghost no-print" onclick="window.print()">{{ icon("printer", "icon-sm") }}<span>چاپ</span></button>
+{% endblock %}
+
+{% block content %}
+{% set ex = data.executive or {} %}
+{% if not report.total_calls %}
+  <div class="card">{{ empty(data.message or "در این ماه تماسی ثبت نشده است.", "calendar") }}</div>
+{% else %}
+
+{% if ex.executive_summary %}
+<div class="card">
+  <div class="card-head"><h2>{{ icon("file") }}خلاصه مدیریتی</h2></div>
+  <p class="summary-box">{{ ex.executive_summary }}</p>
+  {% if ex.kpi_highlights %}
+  <div class="facts" style="margin-top:1rem">
+    {% if ex.kpi_highlights.best_agent %}<div class="fact"><span>بهترین اپراتور</span><b>{{ ex.kpi_highlights.best_agent }}</b></div>{% endif %}
+    {% if ex.kpi_highlights.most_improved_area %}<div class="fact"><span>بیشترین پیشرفت</span><b>{{ ex.kpi_highlights.most_improved_area }}</b></div>{% endif %}
+    {% if ex.kpi_highlights.biggest_risk %}<div class="fact"><span>بزرگ‌ترین ریسک</span><b>{{ ex.kpi_highlights.biggest_risk }}</b></div>{% endif %}
+  </div>
+  {% endif %}
+</div>
+{% endif %}
+
+{% if data.department_stats %}
+<div class="kpi-grid">
+  {% for d, s in data.department_stats.items() %}
+  <div class="kpi"><span class="kpi-icon {% if d == 'support' %}good{% endif %}">{{ icon("headset" if d == "support" else "trending") }}</span>
+    <div><span>{{ d | label('department') }} · {{ s.total_calls | fa }} تماس</span>
+      <strong>{{ s.avg_satisfaction | fa }}<small> رضایت</small></strong>
+      <span>کیفیت {{ s.avg_agent_quality | fa }} · موفقیت {% if s.success_rate_percent is not none %}{{ s.success_rate_percent | fa }}٪{% else %}—{% endif %}</span></div></div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<div class="grid-2 section-gap">
+  {% if ex.top_strengths %}<div class="card"><div class="card-head"><h2>{{ icon("check") }}نقاط قوت</h2></div>{{ bullets(ex.top_strengths, "good") }}</div>{% endif %}
+  {% if ex.critical_issues %}<div class="card"><div class="card-head"><h2>{{ icon("alert") }}مشکلات مهم</h2></div>{{ bullets(ex.critical_issues, "bad") }}</div>{% endif %}
+  {% if ex.recommendations %}<div class="card"><div class="card-head"><h2>{{ icon("list") }}توصیه‌ها</h2></div><ol class="actions-list">{% for r in ex.recommendations %}<li>{{ r }}</li>{% endfor %}</ol></div>{% endif %}
+  {% if ex.training_priorities %}<div class="card"><div class="card-head"><h2>{{ icon("award") }}اولویت‌های آموزشی</h2></div>{{ bullets(ex.training_priorities, "mid") }}</div>{% endif %}
+</div>
+
+{% if ex.department_insights %}
+<div class="card">
+  <div class="card-head"><h2>{{ icon("target") }}تحلیل بخش‌ها</h2></div>
+  {% for d, text in ex.department_insights.items() if text %}
+    <div class="subhead">{{ d | label('department') }}</div><p style="margin-bottom:.5rem">{{ text }}</p>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% if data.agent_rankings %}
+<div class="card">
+  <div class="card-head"><h2>{{ icon("users") }}رتبه‌بندی اپراتورها</h2></div>
+  <div class="table-wrap"><table class="responsive">
+    <thead><tr><th>رتبه</th><th>اپراتور</th><th>امتیاز موفقیت</th><th>تماس</th><th>کیفیت</th><th>رضایت</th><th>قصد خرید</th><th>نیاز به بررسی</th></tr></thead>
+    <tbody>
+    {% for a in data.agent_rankings %}
+      <tr>
+        <td class="cell-muted">{{ loop.index | fa }}</td>
+        <td class="cell-strong">{{ a.agent_name }}</td>
+        <td>{{ score(a.success_score) }}</td>
+        <td class="num">{{ a.total_calls | fa }}</td>
+        <td>{{ score(a.avg_agent_quality) }}</td>
+        <td>{{ score(a.avg_satisfaction) }}</td>
+        <td>{{ score(a.avg_purchase_intent) }}</td>
+        <td class="num">{{ a.needs_review_count | fa }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+</div>
+{% endif %}
+{% endif %}
+{% endblock %}

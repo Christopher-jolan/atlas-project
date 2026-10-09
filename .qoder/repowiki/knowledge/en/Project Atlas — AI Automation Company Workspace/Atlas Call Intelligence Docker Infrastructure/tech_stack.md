@@ -1,0 +1,1 @@
+PostgreSQL 16 for persistence, n8n for workflow orchestration, FastAPI + Jinja2 for the admin panel, psycopg2 for direct SQL access, and Python's built-in `http.server` + `smtplib` for the email notifier. AI integration uses OpenAI-compatible endpoints (e.g., Ollama at `host.docker.internal:11434`) driven by `AI_API_URL` / `AI_MODEL` env vars.

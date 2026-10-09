@@ -1,0 +1,2 @@
+- Strategy and product artifacts are authored as Markdown files organized by domain (strategy, products, infrastructure) rather than as source code modules.
+- Bilingual content is maintained in parallel English and Persian versions across strategy and product documentation.

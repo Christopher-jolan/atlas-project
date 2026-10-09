@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon %}
+{% block title %}کاربران{% endblock %}
+{% block subtitle %}<div class="subtitle-top">برای هر مدیر یا کارمند حساب جداگانه بسازید و سطح دسترسی را تعیین کنید.</div>{% endblock %}
+
+{% block content %}
+{% set messages = {
+  "created": ("success", "کاربر جدید ساخته شد."),
+  "password": ("success", "رمز عبور کاربر تغییر کرد."),
+  "deleted": ("success", "کاربر حذف شد."),
+  "exists": ("error", "این نام کاربری قبلاً ثبت شده است."),
+  "invalid": ("error", "اطلاعات نامعتبر است. رمز عبور باید حداقل ۸ کاراکتر باشد."),
+} %}
+{% if msg in messages %}<div class="alert {{ messages[msg][0] }}">{{ messages[msg][1] }}</div>{% endif %}
+
+<div class="grid-3">
+  <div class="card span-2">
+    <div class="card-head"><h2>{{ icon("users") }}کاربران پنل</h2></div>
+    <div class="table-wrap"><table class="responsive">
+      <thead><tr><th>کاربر</th><th>نقش</th><th>وضعیت</th><th>آخرین ورود</th><th></th></tr></thead>
+      <tbody>
+      {% for u in users %}
+        <tr>
+          <td><span class="cell-strong">{{ u.full_name or u.username }}</span><br><span class="cell-muted" dir="ltr">{{ u.username }}</span></td>
+          <td><span class="badge {% if u.role == 'admin' %}brand{% endif %}">{{ roles.get(u.role, u.role) }}</span></td>
+          <td>{% if u.is_active %}<span class="badge good">فعال</span>{% else %}<span class="badge bad">غیرفعال</span>{% endif %}</td>
+          <td class="cell-muted num">{{ u.last_login_at | jdate(with_time=True) }}</td>
+          <td data-label="">
+            {% if u.id != user.id %}
+            <div style="display:flex;gap:.4rem;justify-content:flex-end;flex-wrap:wrap">
+              <button type="button" class="btn btn-ghost btn-sm" data-reset="{{ u.id }}" data-name="{{ u.full_name or u.username }}">{{ icon("key", "icon-sm") }}رمز</button>
+              <form method="post" action="/users/{{ u.id }}/toggle" class="inline-form"><button class="btn btn-ghost btn-sm">{% if u.is_active %}غیرفعال{% else %}فعال{% endif %}</button></form>
+              <form method="post" action="/users/{{ u.id }}/delete" class="inline-form" data-confirm="کاربر «{{ u.username }}» حذف شود؟"><button class="btn btn-danger btn-sm" aria-label="حذف">{{ icon("trash", "icon-sm") }}</button></form>
+            </div>
+            {% else %}<span class="cell-muted">حساب شما</span>{% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table></div>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><h2>{{ icon("plus") }}کاربر جدید</h2></div>
+    <form method="post" action="/users" autocomplete="off">
+      <div class="field"><label for="full_name">نام و نام خانوادگی</label><input type="text" id="full_name" name="full_name" class="input"></div>
+      <div class="field"><label for="new-username">نام کاربری</label>
+        <input type="text" id="new-username" name="username" class="input input-ltr" dir="ltr" required pattern="[A-Za-z0-9_.\-]{3,40}" autocomplete="off">
+        <div class="hint">حروف انگلیسی، عدد، نقطه یا خط تیره</div></div>
+      <div class="field"><label for="new-password">رمز عبور</label>
+        <input type="password" id="new-password" name="password" class="input input-ltr" dir="ltr" required minlength="8" autocomplete="new-password"></div>
+      <div class="field"><label for="role">نقش</label>
+        <select id="role" name="role" class="input">
+          <option value="viewer">مشاهده‌گر — فقط دیدن گزارش‌ها</option>
+          <option value="manager">مدیر — گزارش‌ها و آپلود تماس</option>
+          <option value="admin">مدیر سیستم — دسترسی کامل</option>
+        </select></div>
+      <button type="submit" class="btn btn-block">ساخت کاربر</button>
+    </form>
+  </div>
+</div>
+
+<form method="post" id="reset-form" class="hidden"><input type="hidden" name="password" id="reset-password"></form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  document.querySelectorAll("[data-reset]").forEach(function (b) {
+    b.addEventListener("click", function () {
+      var p = prompt("رمز عبور جدید برای «" + b.dataset.name + "» (حداقل ۸ کاراکتر):");
+      if (!p) return;
+      if (p.length < 8) { alert("رمز عبور باید حداقل ۸ کاراکتر باشد."); return; }
+      var f = document.getElementById("reset-form");
+      f.action = "/users/" + b.dataset.reset + "/password";
+      document.getElementById("reset-password").value = p;
+      f.submit();
+    });
+  });
+</script>
+{% endblock %}

@@ -1,0 +1,152 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Atlas Call Intelligence Output",
+  "description": "خروجی استاندارد تحلیل تماس صوتی اطلس",
+  "type": "object",
+  "required": ["meta", "input", "transcript", "customer", "agent_performance", "ticket", "insights", "quality_control"],
+  "properties": {
+    "meta": {
+      "type": "object",
+      "required": ["call_id", "analyzed_at", "department", "workflow_version", "confidence_overall"],
+      "properties": {
+        "call_id": { "type": "string" },
+        "analyzed_at": { "type": "string", "format": "date-time" },
+        "department": { "type": "string", "enum": ["sales", "support", "mixed", "unknown"] },
+        "language": { "type": "string", "default": "fa" },
+        "workflow_version": { "type": "string" },
+        "confidence_overall": { "type": "integer", "minimum": 0, "maximum": 100 }
+      }
+    },
+    "input": {
+      "type": "object",
+      "properties": {
+        "audio_url": { "type": "string" },
+        "call_direction": { "type": "string", "enum": ["inbound", "outbound"] },
+        "call_duration_seconds": { "type": "integer" },
+        "agent_name": { "type": "string" },
+        "agent_id": { "type": "string" },
+        "customer_phone": { "type": "string" },
+        "customer_name": { "type": "string" },
+        "call_date": { "type": "string" }
+      }
+    },
+    "transcript": {
+      "type": "object",
+      "required": ["full_text"],
+      "properties": {
+        "full_text": { "type": "string" },
+        "segments": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "speaker": { "type": "string", "enum": ["agent", "customer", "unknown"] },
+              "text": { "type": "string" },
+              "start_sec": { "type": "number" },
+              "end_sec": { "type": "number" }
+            }
+          }
+        },
+        "word_count": { "type": "integer" }
+      }
+    },
+    "customer": {
+      "type": "object",
+      "properties": {
+        "request_summary": { "type": "string" },
+        "needs": { "type": "array", "items": { "type": "string" } },
+        "pain_points": { "type": "array", "items": { "type": "string" } },
+        "products_mentioned": { "type": "array", "items": { "type": "string" } },
+        "sentiment": {
+          "type": "object",
+          "properties": {
+            "overall": { "type": "string", "enum": ["positive", "neutral", "negative", "mixed"] },
+            "score": { "type": "integer", "minimum": -100, "maximum": 100 },
+            "voice_indicators": { "type": "array", "items": { "type": "string" } }
+          }
+        },
+        "satisfaction": {
+          "type": "object",
+          "properties": {
+            "initial_score": { "type": "integer", "minimum": 0, "maximum": 100 },
+            "final_score": { "type": "integer", "minimum": 0, "maximum": 100 },
+            "delta": { "type": "integer" },
+            "resolved": { "type": ["boolean", "null"] }
+          }
+        }
+      }
+    },
+    "agent_performance": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "response_quality_score": { "type": "integer", "minimum": 0, "maximum": 100 },
+        "communication_skills": { "type": "integer", "minimum": 0, "maximum": 100 },
+        "product_knowledge": { "type": "integer", "minimum": 0, "maximum": 100 },
+        "empathy_score": { "type": "integer", "minimum": 0, "maximum": 100 },
+        "process_adherence": { "type": "integer", "minimum": 0, "maximum": 100 },
+        "strengths": { "type": "array", "items": { "type": "string" } },
+        "improvements": { "type": "array", "items": { "type": "string" } },
+        "key_actions_taken": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "sales_analysis": {
+      "type": "object",
+      "properties": {
+        "applicable": { "type": "boolean" },
+        "purchase_intent_score": { "type": "integer", "minimum": 0, "maximum": 100 },
+        "purchase_stage": { "type": "string" },
+        "main_objections": { "type": "array", "items": { "type": "string" } },
+        "price_sensitivity": { "type": "string", "enum": ["low", "medium", "high"] },
+        "estimated_discount_to_close_percent": { "type": ["integer", "null"] },
+        "estimated_close_probability_percent": { "type": "integer", "minimum": 0, "maximum": 100 },
+        "recommended_next_step": { "type": "string" },
+        "competitor_mentions": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "support_analysis": {
+      "type": "object",
+      "properties": {
+        "applicable": { "type": "boolean" },
+        "issue_category": { "type": "string" },
+        "issue_summary": { "type": "string" },
+        "resolution_status": { "type": "string", "enum": ["resolved", "partial", "unresolved", "escalated"] },
+        "first_call_resolution": { "type": ["boolean", "null"] },
+        "process_management_score": { "type": "integer", "minimum": 0, "maximum": 100 },
+        "customer_retention_risk": { "type": "string", "enum": ["low", "medium", "high"] }
+      }
+    },
+    "ticket": {
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "priority": { "type": "string", "enum": ["low", "medium", "high", "urgent"] },
+        "category": { "type": "string" },
+        "description": { "type": "string" },
+        "actionable": { "type": "boolean" },
+        "recommended_assignee": { "type": "string" },
+        "follow_up_required": { "type": "boolean" },
+        "follow_up_date": { "type": "string" },
+        "tags": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "insights": {
+      "type": "object",
+      "properties": {
+        "key_takeaways": { "type": "array", "items": { "type": "string" } },
+        "risks": { "type": "array", "items": { "type": "string" } },
+        "opportunities": { "type": "array", "items": { "type": "string" } },
+        "compliance_notes": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "quality_control": {
+      "type": "object",
+      "properties": {
+        "transcript_quality": { "type": "string", "enum": ["good", "fair", "poor"] },
+        "analysis_flags": { "type": "array", "items": { "type": "string" } },
+        "needs_human_review": { "type": "boolean" },
+        "review_reason": { "type": "string" }
+      }
+    }
+  }
+}

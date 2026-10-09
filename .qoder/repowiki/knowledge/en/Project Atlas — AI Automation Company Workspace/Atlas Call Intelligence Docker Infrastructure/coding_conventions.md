@@ -1,0 +1,4 @@
+- Service configuration is externalized entirely through environment variables read via `os.getenv()` with documented defaults (see `panel/app/config.py` and `mailer/mailer.py`).
+- Database access goes through a single `db.py` layer that opens a psycopg2 connection per request using a context manager and returns rows as dicts via `RealDictCursor`.
+- Panel route handlers follow a uniform pattern: define a FastAPI `@app.get` returning `templates.TemplateResponse(...)` with a shared `ctx(request, active=..., items=...)` helper that injects the active tab and query results.
+- n8n workflows are versioned as separate JSON files under `n8n/workflows/` (e.g. `audio-analysis-advanced-v*.json`) rather than edited in-place, enabling rollback between workflow revisions.

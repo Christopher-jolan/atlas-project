@@ -1,0 +1,171 @@
+[
+  {
+    "updatedAt": "2026-08-13T12:00:00.000Z",
+    "createdAt": "2026-08-13T12:00:00.000Z",
+    "id": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+    "name": "Atlas Call Intelligence - Monthly Report",
+    "description": "گزارش ماهانه عملکرد فروش و پشتیبانی بر اساس تحلیل تماس‌ها",
+    "active": false,
+    "isArchived": false,
+    "nodes": [
+      {
+        "parameters": {
+          "rule": {
+            "interval": [
+              {
+                "field": "cronExpression",
+                "expression": "0 8 1 * *"
+              }
+            ]
+          }
+        },
+        "type": "n8n-nodes-base.scheduleTrigger",
+        "typeVersion": 1.2,
+        "position": [200, 300],
+        "id": "schedule",
+        "name": "Monthly Schedule"
+      },
+      {
+        "parameters": {
+          "httpMethod": "POST",
+          "path": "atlas/call-intelligence/monthly-report",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.webhook",
+        "typeVersion": 2,
+        "position": [200, 500],
+        "id": "webhook-manual",
+        "name": "Manual Report Webhook"
+      },
+      {
+        "parameters": {
+          "functionCode": "const body = $input.item.json || {};\nconst now = new Date();\nlet year, month;\nif (body.year && body.month) {\n  year = Number(body.year);\n  month = Number(body.month);\n} else {\n  const d = new Date(now.getFullYear(), now.getMonth() - 1, 1);\n  year = d.getFullYear();\n  month = d.getMonth() + 1;\n}\nconst start = new Date(year, month - 1, 1);\nconst end = new Date(year, month, 1);\nconst reportMonth = `${year}-${String(month).padStart(2, '0')}-01`;\nreturn [{ json: {\n  report_month: reportMonth,\n  period_start: start.toISOString(),\n  period_end: end.toISOString(),\n  department_filter: body.department || 'all'\n} }];"
+        },
+        "type": "n8n-nodes-base.function",
+        "typeVersion": 2,
+        "position": [480, 400],
+        "id": "calc-period",
+        "name": "Calculate Report Period"
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "SELECT call_id, department, agent_id, agent_name, customer_phone, call_date, purchase_intent_score, satisfaction_final_score, agent_quality_score, ticket_priority, needs_human_review, analysis_json FROM call_analyses WHERE call_date >= $1::timestamptz AND call_date < $2::timestamptz ORDER BY call_date ASC",
+          "options": {
+            "queryReplacement": "={{ [$json.period_start, $json.period_end] }}"
+          }
+        },
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.5,
+        "position": [720, 400],
+        "id": "fetch-calls",
+        "name": "Fetch Monthly Calls",
+        "credentials": {
+          "postgres": {
+            "id": "atlas-postgres-cred",
+            "name": "Atlas PostgreSQL"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "functionCode": "const period = $('Calculate Report Period').item.json;\nconst rows = $input.all().map(i => i.json);\nif (!rows.length) {\n  return [{ json: {\n    report_month: period.report_month,\n    total_calls: 0,\n    empty: true,\n    message: 'هیچ تماسی در این بازه ثبت نشده است.'\n  } }];\n}\nconst byAgent = {};\nconst byDept = { sales: [], support: [], mixed: [], unknown: [] };\nfor (const row of rows) {\n  const dept = row.department || 'unknown';\n  if (byDept[dept]) byDept[dept].push(row); else byDept.unknown.push(row);\n  const key = row.agent_id || row.agent_name || 'unknown';\n  if (!byAgent[key]) {\n    byAgent[key] = { agent_id: row.agent_id, agent_name: row.agent_name || 'نامشخص', departments: new Set(), calls: 0, purchase_intent_sum: 0, purchase_intent_count: 0, satisfaction_sum: 0, satisfaction_count: 0, agent_quality_sum: 0, agent_quality_count: 0, needs_review_count: 0, high_priority_count: 0 };\n  }\n  const a = byAgent[key];\n  a.calls += 1;\n  a.departments.add(dept);\n  if (row.purchase_intent_score != null) { a.purchase_intent_sum += row.purchase_intent_score; a.purchase_intent_count += 1; }\n  if (row.satisfaction_final_score != null) { a.satisfaction_sum += row.satisfaction_final_score; a.satisfaction_count += 1; }\n  if (row.agent_quality_score != null) { a.agent_quality_sum += row.agent_quality_score; a.agent_quality_count += 1; }\n  if (row.needs_human_review) a.needs_review_count += 1;\n  if (row.ticket_priority === 'high' || row.ticket_priority === 'urgent') a.high_priority_count += 1;\n}\nconst agentStats = Object.values(byAgent).map(a => ({\n  agent_id: a.agent_id,\n  agent_name: a.agent_name,\n  departments: [...a.departments],\n  total_calls: a.calls,\n  avg_purchase_intent: a.purchase_intent_count ? Math.round(a.purchase_intent_sum / a.purchase_intent_count) : null,\n  avg_satisfaction: a.satisfaction_count ? Math.round(a.satisfaction_sum / a.satisfaction_count) : null,\n  avg_agent_quality: a.agent_quality_count ? Math.round(a.agent_quality_sum / a.agent_quality_count) : null,\n  needs_review_count: a.needs_review_count,\n  high_priority_tickets: a.high_priority_count,\n  success_score: a.agent_quality_count && a.satisfaction_count ? Math.round((a.agent_quality_sum / a.agent_quality_count + a.satisfaction_sum / a.satisfaction_count) / 2) : null\n})).sort((x, y) => (y.success_score || 0) - (x.success_score || 0));\nconst deptStats = {};\nfor (const [dept, list] of Object.entries(byDept)) {\n  if (!list.length) continue;\n  const sat = list.filter(r => r.satisfaction_final_score != null).map(r => r.satisfaction_final_score);\n  const qual = list.filter(r => r.agent_quality_score != null).map(r => r.agent_quality_score);\n  const intent = list.filter(r => r.purchase_intent_score != null).map(r => r.purchase_intent_score);\n  deptStats[dept] = {\n    total_calls: list.length,\n    avg_satisfaction: sat.length ? Math.round(sat.reduce((a,b)=>a+b,0)/sat.length) : null,\n    avg_agent_quality: qual.length ? Math.round(qual.reduce((a,b)=>a+b,0)/qual.length) : null,\n    avg_purchase_intent: intent.length ? Math.round(intent.reduce((a,b)=>a+b,0)/intent.length) : null,\n    needs_review_count: list.filter(r => r.needs_human_review).length,\n    success_rate_percent: sat.length ? Math.round(sat.filter(s => s >= 70).length / sat.length * 100) : null\n  };\n}\nconst aggregate = {\n  report_month: period.report_month,\n  period_start: period.period_start,\n  period_end: period.period_end,\n  total_calls: rows.length,\n  department_stats: deptStats,\n  agent_rankings: agentStats,\n  top_performers: agentStats.slice(0, 5),\n  needs_coaching: agentStats.filter(a => (a.avg_agent_quality || 100) < 60 || (a.avg_satisfaction || 100) < 60).slice(0, 5),\n  sample_call_ids: rows.slice(0, 10).map(r => r.call_id)\n};\nconst prompt = `You are Atlas Call Intelligence reporting AI.\\nGenerate a monthly executive report in Persian based on this aggregated call data.\\nReturn ONLY valid JSON with this structure:\\n{\\n  \"executive_summary\": \"خلاصه مدیریتی ۳-۵ جمله\",\\n  \"department_insights\": { \"sales\": \"...\", \"support\": \"...\", \"mixed\": \"...\" },\\n  \"top_strengths\": [],\\n  \"critical_issues\": [],\\n  \"recommendations\": [],\\n  \"training_priorities\": [],\\n  \"kpi_highlights\": { \"best_agent\": \"\", \"most_improved_area\": \"\", \"biggest_risk\": \"\" }\\n}\\nAll text values in Persian. Use the numbers provided; do not invent calls.\\n\\nData:\\n${JSON.stringify(aggregate, null, 2)}`;\nreturn [{ json: { aggregate, prompt, report_month: period.report_month } }];"
+        },
+        "type": "n8n-nodes-base.function",
+        "typeVersion": 2,
+        "position": [960, 400],
+        "id": "aggregate",
+        "name": "Aggregate Statistics"
+      },
+      {
+        "parameters": {
+          "functionCode": "const item = $input.item.json;\nif (item.empty) {\n  return [{ json: { report: { meta: { report_month: item.report_month, total_calls: 0 }, message: item.message }, report_month: item.report_month, total_calls: 0 } }];\n}\nconst apiUrl = process.env.API_URL || 'http://host.docker.internal:11434/v1/chat/completions';\nconst apiKey = process.env.API_KEY || '';\nconst model = process.env.AI_MODEL || 'gpt-4o-mini';\nconst response = await this.helpers.request({\n  method: 'POST',\n  uri: apiUrl,\n  json: true,\n  headers: apiKey ? { Authorization: `Bearer ${apiKey}` } : {},\n  body: { model, messages: [{ role: 'user', content: item.prompt }], temperature: 0.2 }\n});\nreturn [{ json: { aggregate: item.aggregate, aiResponse: response, report_month: item.report_month } }];"
+        },
+        "type": "n8n-nodes-base.function",
+        "typeVersion": 2,
+        "position": [1200, 400],
+        "id": "ai-report",
+        "name": "AI Executive Summary"
+      },
+      {
+        "parameters": {
+          "functionCode": "const item = $input.item.json;\nconst aggregate = item.aggregate;\nif (!aggregate) {\n  return [{ json: { success: true, report: item.report, report_month: item.report_month, total_calls: 0 } }];\n}\nlet text = '';\nconst ai = item.aiResponse || {};\nif (ai.choices?.[0]?.message?.content) text = ai.choices[0].message.content;\nelse if (ai.choices?.[0]?.text) text = ai.choices[0].text;\nelse text = JSON.stringify(ai);\ntext = text.replace(/^```json\\s*/i, '').replace(/^```\\s*/i, '').replace(/\\s*```$/i, '').trim();\nlet aiSummary;\ntry { aiSummary = JSON.parse(text); } catch (e) { aiSummary = { executive_summary: text, parse_error: true }; }\nconst report = {\n  meta: {\n    report_month: aggregate.report_month,\n    generated_at: new Date().toISOString(),\n    workflow_version: '1.0.0',\n    total_calls: aggregate.total_calls,\n    period_start: aggregate.period_start,\n    period_end: aggregate.period_end\n  },\n  department_stats: aggregate.department_stats,\n  agent_rankings: aggregate.agent_rankings,\n  top_performers: aggregate.top_performers,\n  needs_coaching: aggregate.needs_coaching,\n  executive: aiSummary\n};\nconst deptLines = Object.entries(aggregate.department_stats || {}).map(([d, s]) => `- ${d}: ${s.total_calls} تماس، رضایت ${s.avg_satisfaction ?? 'N/A'}، کیفیت ${s.avg_agent_quality ?? 'N/A'}`).join('\\n');\nconst agentLines = (aggregate.top_performers || []).map((a, i) => `${i+1}. ${a.agent_name}: امتیاز ${a.success_score ?? 'N/A'}/100 (${a.total_calls} تماس)`).join('\\n');\nconst emailBody = [\n  `گزارش ماهانه Atlas Call Intelligence - ${aggregate.report_month}`,\n  '━━━━━━━━━━━━━━━━━━━━━━━━━━━━',\n  aiSummary.executive_summary || '',\n  '',\n  `کل تماس‌ها: ${aggregate.total_calls}`,\n  '',\n  'آمار بخش‌ها:',\n  deptLines,\n  '',\n  'برترین پرسنل:',\n  agentLines || '-',\n  '',\n  'توصیه‌ها:',\n  ...(aiSummary.recommendations || []).map(r => `- ${r}`)\n].join('\\n');\nreturn [{ json: {\n  success: true,\n  report,\n  report_month: aggregate.report_month,\n  total_calls: aggregate.total_calls,\n  report_json: JSON.stringify(report),\n  manager_notification: {\n    to: process.env.ATLAS_MANAGER_EMAIL || '',\n    subject: `[اطلس] گزارش ماهانه تماس‌ها - ${aggregate.report_month}`,\n    body: emailBody\n  }\n} }];"
+        },
+        "type": "n8n-nodes-base.function",
+        "typeVersion": 2,
+        "position": [1440, 400],
+        "id": "build-report",
+        "name": "Build Monthly Report"
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "INSERT INTO monthly_reports (report_month, department, report_json, total_calls) VALUES ($1::date, 'all', $2::jsonb, $3) ON CONFLICT (report_month, department) DO UPDATE SET report_json = EXCLUDED.report_json, total_calls = EXCLUDED.total_calls, created_at = NOW() RETURNING id",
+          "options": {
+            "queryReplacement": "={{ [$json.report_month, $json.report_json, $json.total_calls] }}"
+          }
+        },
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.5,
+        "position": [1680, 400],
+        "id": "save-report",
+        "name": "Save Report to DB",
+        "continueOnFail": true,
+        "credentials": {
+          "postgres": {
+            "id": "atlas-postgres-cred",
+            "name": "Atlas PostgreSQL"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "respondWith": "json",
+          "responseBody": "={{ $('Build Monthly Report').item.json }}",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.respondToWebhook",
+        "typeVersion": 1.1,
+        "position": [1920, 500],
+        "id": "respond-manual",
+        "name": "Respond Manual Webhook",
+        "continueOnFail": true
+      }
+    ],
+    "connections": {
+      "Monthly Schedule": {
+        "main": [[{ "node": "Calculate Report Period", "type": "main", "index": 0 }]]
+      },
+      "Manual Report Webhook": {
+        "main": [[{ "node": "Calculate Report Period", "type": "main", "index": 0 }]]
+      },
+      "Calculate Report Period": {
+        "main": [[{ "node": "Fetch Monthly Calls", "type": "main", "index": 0 }]]
+      },
+      "Fetch Monthly Calls": {
+        "main": [[{ "node": "Aggregate Statistics", "type": "main", "index": 0 }]]
+      },
+      "Aggregate Statistics": {
+        "main": [[{ "node": "AI Executive Summary", "type": "main", "index": 0 }]]
+      },
+      "AI Executive Summary": {
+        "main": [[{ "node": "Build Monthly Report", "type": "main", "index": 0 }]]
+      },
+      "Build Monthly Report": {
+        "main": [[{ "node": "Save Report to DB", "type": "main", "index": 0 }]]
+      },
+      "Save Report to DB": {
+        "main": [[{ "node": "Respond Manual Webhook", "type": "main", "index": 0 }]]
+      }
+    },
+    "pinData": {},
+    "settings": {
+      "executionOrder": "v1"
+    },
+    "tags": [
+      { "name": "atlas" },
+      { "name": "call-intelligence" },
+      { "name": "monthly-report" }
+    ]
+  }
+]

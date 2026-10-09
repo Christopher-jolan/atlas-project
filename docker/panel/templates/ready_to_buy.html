@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon, score, priority, empty, pager, search_bar %}
+{% block title %}مشتریان آماده خرید{% endblock %}
+{% block subtitle %}<div class="subtitle-top">مشتریانی که قصد خرید بالایی نشان داده‌اند و باید سریع پیگیری شوند.</div>{% endblock %}
+{% block actions %}<a href="/export/ready-to-buy" class="btn btn-ghost no-print">{{ icon("download", "icon-sm") }}<span>خروجی اکسل</span></a>{% endblock %}
+
+{% block content %}
+<div class="card">
+  {{ search_bar("/ready-to-buy", q) }}
+  <div class="table-wrap"><table class="responsive">
+    <thead><tr><th>مشتری</th><th>تلفن</th><th>قصد خرید</th><th>احتمال بستن</th><th>اقدام بعدی</th><th>اپراتور</th><th>تاریخ</th></tr></thead>
+    <tbody>
+    {% for c in items %}
+      <tr data-href="/calls/{{ c.call_id }}">
+        <td><a href="/calls/{{ c.call_id }}" class="cell-strong">{{ c.customer_name or "مشتری ناشناس" }}</a></td>
+        <td class="num" dir="ltr">{{ c.customer_phone | fa }}</td>
+        <td>{{ score(c.purchase_intent_score) }}</td>
+        <td class="num">{% if c.close_prob %}{{ c.close_prob | fa }}٪{% else %}—{% endif %}</td>
+        <td class="truncate" title="{{ c.next_step or '' }}">{{ c.next_step or "—" }}</td>
+        <td>{{ c.agent_name or "—" }}</td>
+        <td class="cell-muted num">{{ c.call_date | jdate }}</td>
+      </tr>
+    {% else %}
+      <tr><td colspan="7" class="empty">هنوز مشتری آماده خریدی شناسایی نشده است.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+  {{ pager(page, items | length, q) }}
+</div>
+{% endblock %}

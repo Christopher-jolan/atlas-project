@@ -1,0 +1,1 @@
+Markdown-driven documentation (bilingual Persian/English), Docker Compose for infrastructure orchestration, PostgreSQL + n8n + FastAPI + Python SMTP as the deployed stack for the Call Intelligence product.

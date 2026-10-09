@@ -1,0 +1,1 @@
+Bilingual (Persian/English) markdown documents defining the company's identity, mission, vision, values, and strategic positioning including ICP, competitors, pricing, KPIs, and roadmap.

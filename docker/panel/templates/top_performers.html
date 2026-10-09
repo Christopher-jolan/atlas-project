@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon, score %}
+{% block title %}برترین اپراتورها{% endblock %}
+{% block subtitle %}<div class="subtitle-top">رتبه‌بندی بر اساس میانگین کیفیت پاسخ‌گویی و رضایت مشتری.</div>{% endblock %}
+{% block actions %}<a href="/export/top-performers" class="btn btn-ghost no-print">{{ icon("download", "icon-sm") }}<span>خروجی اکسل</span></a>{% endblock %}
+
+{% block content %}
+<div class="card">
+  <div class="table-wrap"><table class="responsive">
+    <thead><tr><th>رتبه</th><th>اپراتور</th><th>امتیاز موفقیت</th><th>تعداد تماس</th><th>کیفیت</th><th>رضایت</th><th>قصد خرید</th><th>مشتری آماده خرید</th><th>مشتری راضی</th></tr></thead>
+    <tbody>
+    {% for p in items %}
+      <tr>
+        <td>{% if loop.index <= 3 %}<span class="badge {{ ['good', 'brand', 'mid'][loop.index0] }}">{{ loop.index | fa }}</span>{% else %}<span class="cell-muted">{{ loop.index | fa }}</span>{% endif %}</td>
+        <td class="cell-strong">{{ p.agent_name }}</td>
+        <td>{{ score(p.success_score) }}</td>
+        <td class="num">{{ p.total_calls | fa }}</td>
+        <td>{{ score(p.avg_quality) }}</td>
+        <td>{{ score(p.avg_satisfaction) }}</td>
+        <td>{{ score(p.avg_intent) }}</td>
+        <td class="num">{{ p.hot_leads | fa }}</td>
+        <td class="num">{{ p.happy_customers | fa }}</td>
+      </tr>
+    {% else %}
+      <tr><td colspan="9" class="empty">هنوز داده‌ای برای رتبه‌بندی وجود ندارد.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+</div>
+{% endblock %}

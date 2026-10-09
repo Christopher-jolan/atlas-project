@@ -1,0 +1,99 @@
+body{margin:0;background:#050816;color:#fff;font-family:Arial}
+nav{display:flex;justify-content:space-between;padding:20px 8%;position:fixed;width:84%;backdrop-filter:blur(10px);z-index:100}
+a{color:#9be7ff;text-decoration:none;margin:0 10px}
+.hero{height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;position:relative;z-index:2}
+h1{font-size:64px;margin:0}.btn{padding:14px 24px;background:#00d9ff;color:#001;border-radius:10px;font-weight:700;display:inline-block}
+.glow{position:absolute;width:300px;height:300px;border-radius:50%;background:#00d9ff33;filter:blur(80px)}
+section{padding:80px 10%;position:relative;z-index:2}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px}
+.card{background:#111827;padding:20px;border-radius:16px;transition:.3s}.card:hover{transform:translateY(-8px) rotateX(2deg);box-shadow:0 0 30px #00d9ff55}
+
+/* New content styles — template preserved */
+.bg-animated{position:fixed;inset:0;z-index:0;background:radial-gradient(circle at 20% 20%,#00d9ff11,transparent 40%),radial-gradient(circle at 80% 70%,#6366f111,transparent 45%);animation:bgShift 12s ease-in-out infinite alternate}
+@keyframes bgShift{from{transform:scale(1) translateY(0)}to{transform:scale(1.08) translateY(-20px)}}
+#loader{position:fixed;inset:0;background:#050816;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;transition:opacity .5s,visibility .5s}
+#loader.hidden{opacity:0;visibility:hidden;pointer-events:none}
+.loader-ring{width:48px;height:48px;border:3px solid #00d9ff33;border-top-color:#00d9ff;border-radius:50%;animation:spin .8s linear infinite;margin-bottom:16px}
+@keyframes spin{to{transform:rotate(360deg)}}
+#cursor-glow{position:fixed;width:220px;height:220px;border-radius:50%;background:radial-gradient(circle,#00d9ff22,transparent 70%);pointer-events:none;transform:translate(-50%,-50%);z-index:1;transition:opacity .2s}
+.hero-meta{color:#9be7ff;margin:12px 0 24px;font-size:15px}
+.lead{font-size:18px;color:#e5e7eb}
+.timeline{display:grid;gap:16px;max-width:640px}
+.timeline-item{background:#111827;padding:20px;border-radius:16px;border-left:3px solid #00d9ff}
+.timeline-item h3{margin:0 0 6px}
+.company{color:#9be7ff;margin:0}
+.skills-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:20px}
+.skill-group{background:#111827;padding:20px;border-radius:16px}
+.skill-group h3{margin:0 0 12px;font-size:16px;color:#00d9ff}
+.tags{display:flex;flex-wrap:wrap;gap:8px}
+.tags span{background:#050816;border:1px solid #00d9ff44;padding:6px 12px;border-radius:999px;font-size:13px}
+.cert-card{background:#111827;padding:24px;border-radius:16px;max-width:360px;border:1px solid #00d9ff33}
+.cert-card h3{margin:0 0 8px}
+.cert-card p{margin:0;color:#9be7ff}
+.project-card{padding:0;overflow:hidden}
+.project-img img{width:100%;height:180px;object-fit:cover;display:block;border-radius:16px 16px 0 0}
+.project-card h3{padding:16px 20px 8px;margin:0}
+.project-card .tags{padding:0 20px 12px}
+.project-links{padding:0 20px 20px;display:flex;gap:10px;flex-wrap:wrap}
+.btn-sm{padding:8px 14px;background:#00d9ff;color:#001;border-radius:8px;font-size:13px;font-weight:700}
+.btn-outline{background:transparent;border:1px solid #00d9ff;color:#9be7ff}
+.reveal{opacity:0;transform:translateY(30px);transition:opacity .7s ease,transform .7s ease}
+.reveal.visible{opacity:1;transform:translateY(0)}
+.logo a{color:inherit;text-decoration:none}
+footer{text-align:center;padding:40px 10%;color:#9be7ff;font-size:14px;position:relative;z-index:2;border-top:1px solid #00d9ff22}
+
+/* Projects listing & detail pages */
+.page-hero{min-height:50vh;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;padding:120px 10% 60px;position:relative;z-index:2}
+.page-hero h1{font-size:clamp(2rem,5vw,3rem);margin:0 0 12px}
+.page-hero .hero-sub{color:#9be7ff;font-size:15px;margin-bottom:16px;letter-spacing:1px}
+.page-hero .hero-desc{color:#e5e7eb;max-width:640px;line-height:1.8;font-size:16px;margin:0}
+.page-hero .hero-emoji{font-size:4rem;margin-bottom:16px;animation:float 3s ease-in-out infinite}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+.content-wrap{max-width:900px;margin:0 auto;padding:0 10% 80px;position:relative;z-index:2}
+.back-btn{display:inline-block;margin-bottom:32px;color:#9be7ff;font-size:14px}
+.back-btn:hover{color:#00d9ff}
+.sec-block{margin-bottom:40px}
+.sec-block h2{color:#00d9ff;margin:0 0 20px;font-size:22px}
+.glass-card{background:#111827;padding:24px;border-radius:16px;border:1px solid #00d9ff22}
+.card-grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.card-grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.card-grid-auto{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px}
+.info-card{padding:20px;border-radius:14px;background:#050816;border:1px solid #00d9ff22}
+.info-card.danger{border-color:#ff6b6b44;background:rgba(255,80,80,.06)}
+.info-card.success{border-color:#00d9ff55;background:rgba(0,217,255,.06)}
+.info-card h3{margin:0 0 8px;font-size:15px}
+.info-card p{margin:0;color:#9be7ff;font-size:14px;line-height:1.7}
+.info-card .label{font-size:12px;color:#00d9ff;margin-bottom:8px;font-weight:700}
+.feature-row{display:flex;gap:16px;padding:16px;border-radius:12px;background:#050816;border:1px solid #00d9ff15;margin-bottom:12px;transition:.3s}
+.feature-row:last-child{margin-bottom:0}
+.feature-row:hover{border-color:#00d9ff44;background:rgba(0,217,255,.04)}
+.feature-row .icon{font-size:1.5rem;flex-shrink:0}
+.feature-row h3{margin:0 0 4px;font-size:15px}
+.feature-row p{margin:0;color:#9be7ff;font-size:13px;line-height:1.65}
+.step-row{display:flex;gap:16px;padding:16px 0;border-bottom:1px solid #00d9ff15}
+.step-row:last-child{border-bottom:none}
+.step-num{width:36px;height:36px;border-radius:50%;background:#00d9ff;color:#001;display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0;font-size:14px}
+.step-row h3{margin:0 0 4px;font-size:15px}
+.step-row p{margin:0;color:#9be7ff;font-size:13px;line-height:1.65}
+.highlight-box{background:rgba(0,217,255,.06);border:1px solid #00d9ff33;border-radius:14px;padding:20px;display:flex;gap:16px;margin-top:20px}
+.highlight-box .icon{font-size:2rem;flex-shrink:0}
+.highlight-box h3{margin:0 0 8px;color:#00d9ff;font-size:16px}
+.highlight-box p{margin:0;color:#9be7ff;font-size:14px;line-height:1.7}
+.center-actions{text-align:center;margin-top:24px}
+.demo-box{border:1px dashed #00d9ff33;border-radius:14px;padding:32px;text-align:center;margin-top:20px;color:#9be7ff}
+.projects-list-hero{padding-top:120px;padding-bottom:40px;text-align:center;position:relative;z-index:2}
+.projects-list-hero h1{font-size:clamp(2rem,5vw,3rem);margin:0 0 12px}
+.projects-list-hero p{color:#9be7ff;margin:0}
+.projects-section{padding:0 10% 80px;position:relative;z-index:2}
+.project-list-card{display:flex;flex-direction:column;background:#111827;border-radius:16px;overflow:hidden;text-decoration:none;color:inherit;border:1px solid #00d9ff15;transition:.3s;height:100%}
+.project-list-card:hover{transform:translateY(-8px);box-shadow:0 0 30px #00d9ff55;border-color:#00d9ff44}
+.project-list-visual{height:140px;display:flex;align-items:center;justify-content:center;font-size:3.5rem;background:linear-gradient(135deg,#050816,#111827)}
+.project-list-body{padding:20px;flex:1;display:flex;flex-direction:column;gap:10px}
+.project-list-body .num{font-size:12px;color:#00d9ff;letter-spacing:1px}
+.project-list-body h3{margin:0;font-size:17px}
+.project-list-body p{margin:0;color:#9be7ff;font-size:14px;line-height:1.7;flex:1}
+.project-list-footer{padding:14px 20px;border-top:1px solid #00d9ff15;display:flex;justify-content:space-between;align-items:center;font-size:13px}
+.project-list-footer .cta{color:#00d9ff;font-weight:700}
+.project-list-footer .url{color:#9be7ff;opacity:.7;font-size:12px}
+.tag-accent{border-color:#00d9ff;background:rgba(0,217,255,.1);color:#00d9ff}
+@media(max-width:768px){h1{font-size:42px}nav{padding:16px 5%;width:90%;flex-wrap:wrap;gap:10px}section{padding:60px 6%}.card-grid-2,.card-grid-3{grid-template-columns:1fr}.content-wrap{padding:0 6% 60px}}

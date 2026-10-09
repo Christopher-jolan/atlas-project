@@ -1,0 +1,3 @@
+- Each product directory mirrors a standard seven-file template: README, Architecture, API, Database, Features, Roadmap, Todo — providing a uniform entry point across all products.
+- Versioned subdirectories (e.g., `V1`) are used to isolate major releases within a product while keeping the parent directory stable.
+- Product status is tracked inline in `README.md` using emoji markers (e.g., 🟢 Planning) alongside checklists for MVP capabilities.

@@ -1,0 +1,2 @@
+-- Optional demo rows (disabled). Real data comes from uploads via the panel / n8n pipeline.
+-- To load samples manually, see git history for 002_panel_seed.sql.

@@ -1,0 +1,312 @@
+[
+  {
+    "updatedAt": "2026-08-13T13:55:00.000Z",
+    "createdAt": "2026-08-13T12:00:00.000Z",
+    "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "name": "Atlas Call Intelligence v1",
+    "description": "تحلیل جامع تماس صوتی: رونوشت، رضایت، فروش/پشتیبانی، تیکت CRM",
+    "active": true,
+    "isArchived": false,
+    "nodes": [
+      {
+        "parameters": {
+          "httpMethod": "POST",
+          "path": "atlas/call-intelligence",
+          "responseMode": "responseNode",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.webhook",
+        "typeVersion": 2,
+        "position": [
+          200,
+          300
+        ],
+        "id": "webhook-main",
+        "name": "Webhook",
+        "webhookId": "atlas-call-intelligence-v1"
+      },
+      {
+        "parameters": {
+          "mode": "runOnceForEachItem",
+          "jsCode": "const body = $input.item.json.body || $input.item.json;\nconst audioUrl = body.audioUrl || body.audio_url || body.fileUrl || body.file_url || body.url || '';\nconst transcript = (body.transcript || body.text || body.transcript_text || '').trim();\nconst meta = {\n  call_id: body.call_id || body.callId || `call_${Date.now()}`,\n  department: (body.department || body.dept || 'auto').toLowerCase(),\n  agent_name: body.agent_name || body.agentName || '',\n  agent_id: body.agent_id || body.agentId || '',\n  customer_phone: body.customer_phone || body.customerPhone || '',\n  customer_name: body.customer_name || body.customerName || '',\n  call_direction: body.call_direction || body.callDirection || 'inbound',\n  call_duration_seconds: Number(body.call_duration_seconds || body.callDuration || 0) || 0,\n  call_date: body.call_date || body.callDate || new Date().toISOString(),\n  company_name: body.company_name || body.companyName || '',\n  product_context: body.product_context || body.productContext || ''\n};\nif (!transcript && !audioUrl) {\n  throw new Error('ورودی نامعتبر: transcript یا audioUrl الزامی است.');\n}\nreturn { json: { audioUrl, transcript, meta } };"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          440,
+          300
+        ],
+        "id": "parse-input",
+        "name": "Parse Input"
+      },
+      {
+        "parameters": {
+          "mode": "runOnceForEachItem",
+          "jsCode": "const item = $input.item.json;\nconst transcript = item.transcript || '';\nconst meta = item.meta || {};\nconst deptHint = meta.department === 'sales' ? 'This is a SALES call.' : meta.department === 'support' ? 'This is a SUPPORT call.' : 'Detect the department yourself.';\nconst schema = {\"executive_summary\": \"\", \"sms_brief\": \"\", \"next_actions\": [], \"meta\": {\"department\": \"sales|support|mixed|unknown\", \"confidence_overall\": 0}, \"customer\": {\"request_summary\": \"\", \"needs\": [], \"pain_points\": [], \"products_mentioned\": [], \"sentiment\": {\"overall\": \"positive|neutral|negative|mixed\", \"score\": 0}, \"satisfaction\": {\"initial_score\": 0, \"final_score\": 0, \"resolved\": null}}, \"agent_performance\": {\"response_quality_score\": 0, \"communication_skills\": 0, \"product_knowledge\": 0, \"empathy_score\": 0, \"process_adherence\": 0, \"strengths\": [], \"improvements\": []}, \"sales_analysis\": {\"applicable\": false, \"purchase_intent_score\": 0, \"purchase_stage\": \"awareness|interest|consideration|evaluation|negotiation|decision|purchase|closed_won|closed_lost\", \"main_objections\": [], \"price_sensitivity\": \"low|medium|high\", \"estimated_discount_to_close_percent\": null, \"estimated_close_probability_percent\": 0, \"recommended_next_step\": \"\", \"competitor_mentions\": []}, \"support_analysis\": {\"applicable\": false, \"issue_category\": \"\", \"issue_summary\": \"\", \"resolution_status\": \"resolved|partial|unresolved|escalated\", \"first_call_resolution\": null, \"customer_retention_risk\": \"low|medium|high\"}, \"ticket\": {\"title\": \"\", \"priority\": \"low|medium|high|urgent\", \"description\": \"\", \"actionable\": true, \"recommended_assignee\": \"\", \"follow_up_required\": false, \"follow_up_date\": \"YYYY-MM-DD or empty\", \"tags\": []}, \"insights\": {\"key_takeaways\": [], \"risks\": [], \"opportunities\": [], \"compliance_notes\": []}, \"quality_control\": {\"transcript_quality\": \"good|fair|poor\", \"needs_human_review\": false, \"review_reason\": \"\"}};\nconst today = new Date().toISOString().slice(0, 10);\nlet todayFa = today;\ntry { todayFa = new Intl.DateTimeFormat('fa-IR-u-ca-persian', { dateStyle: 'full', timeZone: 'Asia/Tehran' }).format(new Date()); } catch (e) {}\nconst prompt = `You are a senior sales and customer-experience analyst writing for the managers of the company whose staff answered this call.\nBusiness context (use it to make every recommendation specific to this business; take company and product names from the transcript): ${meta.product_context || 'not provided'}\n${deptHint}\nCall metadata: agent=${meta.agent_name || 'unknown'}, customer=${meta.customer_name || meta.customer_phone || 'unknown'}, date=${meta.call_date}, today=${today} (${todayFa})\n\nAnalyze the call transcript below and return ONLY one valid JSON object (no markdown) with exactly this structure:\n${JSON.stringify(schema)}\n\nWriting rules:\n- Every text value must be fluent, natural, polite Persian (Farsi) that a busy manager can read in seconds. Keys stay in English. Enum fields use one of the listed English values.\n- executive_summary: 2 to 4 sentences — who called, what they wanted, what happened, and the single most important point for the manager.\n- sms_brief: the single most important action for the manager in at most 45 Persian characters, no links, no emoji, e.g. \"ارسال پیش‌فاکتور تا امروز عصر\".\n- next_actions: 1 to 5 concrete, imperative actions in Persian, each with what/who/when where possible. Examples: \"ارسال پیش‌فاکتور ۲۰ دستگاه برای مشتری تا پایان امروز\"، \"تماس مجدد کارشناس فنی با مشتری فردا صبح برای رفع مشکل نصب\". Never write vague advice like \"پیگیری شود\".\n- Inside Persian text never write Gregorian or ISO dates; use relative words such as «امروز»، «فردا صبح»، «تا پایان هفته» or a Persian (Jalali) date. Only ticket.follow_up_date uses YYYY-MM-DD.\n- Name companies, brands and products exactly as they are said in the transcript; if no name is said, write «شرکت» or «محصول» instead of guessing one.\n- Use only facts from the transcript. If something is unknown, leave the string empty or the list empty. Do not invent prices, names or dates.\n- All scores and percentages are integers from 0 to 100.\n- meta.department: \"sales\" for buying/pricing/quotes, \"support\" for problems/complaints/how-to, \"mixed\" if both.\n- sales_analysis.applicable=true only when buying is discussed; support_analysis.applicable=true only when a problem is discussed.\n- ticket.priority \"urgent\" only for an angry/at-risk customer or a deal that needs action today. follow_up_date relative to today when a follow-up is needed.\n- quality_control.needs_human_review=true when the customer is angry, there is legal/financial risk, a big deal is at stake, or the transcript is unclear; explain why in review_reason.\n\nTranscript:\n${transcript}`;\nreturn { json: { prompt, meta, transcript, audioUrl: item.audioUrl } };"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          680,
+          300
+        ],
+        "id": "prepare-prompt",
+        "name": "Prepare Analysis Prompt"
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "={{ $env.API_URL }}",
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              {
+                "name": "Authorization",
+                "value": "={{ 'Bearer ' + ($env.API_KEY || '') }}"
+              }
+            ]
+          },
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={{ JSON.stringify({ model: $env.AI_MODEL || 'gemini-2.5-flash', messages: [{ role: 'user', content: $json.prompt }], temperature: 0.2, response_format: { type: 'json_object' } }) }}",
+          "options": {
+            "timeout": 300000
+          }
+        },
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          920,
+          300
+        ],
+        "id": "ai-request",
+        "name": "AI Request"
+      },
+      {
+        "parameters": {
+          "mode": "runOnceForEachItem",
+          "jsCode": "const aiResponse = $input.item.json;\nconst prev = $('Prepare Analysis Prompt').item.json;\nconst meta = prev.meta || {};\nlet text = aiResponse.choices?.[0]?.message?.content || aiResponse.choices?.[0]?.text || '';\nif (!text && typeof aiResponse === 'object') text = JSON.stringify(aiResponse);\ntext = text.replace(/^```json\\s*/i, '').replace(/^```\\s*/i, '').replace(/\\s*```$/i, '').trim();\nlet analysis;\ntry { analysis = JSON.parse(text); } catch (e) {\n  const m = text.match(/\\{[\\s\\S]*\\}/);\n  try { analysis = m ? JSON.parse(m[0]) : null; } catch (e2) { analysis = null; }\n  if (!analysis) analysis = { parse_error: true, raw_text: text, quality_control: { needs_human_review: true, review_reason: 'پاسخ هوش مصنوعی قابل پردازش نبود.' } };\n}\nconst norm = (o, k) => { if (!o || typeof o[k] !== 'number') return; o[k] = Math.max(0, Math.min(100, Math.round(o[k] > 0 && o[k] <= 1 ? o[k] * 100 : o[k]))); };\nnorm(analysis.sales_analysis, 'purchase_intent_score');\nnorm(analysis.sales_analysis, 'estimated_close_probability_percent');\nnorm(analysis.customer?.satisfaction, 'initial_score');\nnorm(analysis.customer?.satisfaction, 'final_score');\n['response_quality_score', 'communication_skills', 'product_knowledge', 'empathy_score', 'process_adherence'].forEach(k => norm(analysis.agent_performance, k));\nanalysis.meta = analysis.meta || {};\nnorm(analysis.meta, 'confidence_overall');\nif (['sales', 'support'].includes(meta.department)) analysis.meta.department = meta.department;\nif (!['sales', 'support', 'mixed', 'unknown'].includes(analysis.meta.department)) analysis.meta.department = 'unknown';\nObject.assign(analysis.meta, {\n  call_id: meta.call_id,\n  analyzed_at: new Date().toISOString(),\n  workflow_version: '2.0.0',\n  language: 'fa',\n  call_date: meta.call_date,\n  call_direction: meta.call_direction,\n  call_duration_seconds: meta.call_duration_seconds\n});\nif (!Array.isArray(analysis.next_actions)) analysis.next_actions = analysis.next_actions ? [String(analysis.next_actions)] : [];\nanalysis.transcript = { full_text: prev.transcript || '' };\nanalysis.input = {\n  agent_id: meta.agent_id,\n  agent_name: meta.agent_name,\n  customer_phone: meta.customer_phone,\n  customer_name: meta.customer_name\n};\nreturn { json: {\n  success: !analysis.parse_error,\n  call_id: meta.call_id,\n  department: analysis.meta.department,\n  analysis\n} };"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          1160,
+          300
+        ],
+        "id": "parse-validate",
+        "name": "Parse Validate and Enrich"
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "INSERT INTO call_analyses (call_id, department, agent_id, agent_name, customer_phone, customer_name, call_date, call_direction, call_duration_seconds, transcript_text, analysis_json, purchase_intent_score, satisfaction_final_score, agent_quality_score, ticket_priority, needs_human_review) VALUES ($1, $2, $3, $4, $5, $6, $7::timestamptz, $8, $9, $10, $11::jsonb, $12, $13, $14, $15, $16) ON CONFLICT (call_id) DO UPDATE SET department=EXCLUDED.department, agent_id=EXCLUDED.agent_id, agent_name=EXCLUDED.agent_name, customer_phone=EXCLUDED.customer_phone, customer_name=EXCLUDED.customer_name, call_date=EXCLUDED.call_date, call_direction=EXCLUDED.call_direction, call_duration_seconds=EXCLUDED.call_duration_seconds, transcript_text=EXCLUDED.transcript_text, analysis_json=EXCLUDED.analysis_json, purchase_intent_score=EXCLUDED.purchase_intent_score, satisfaction_final_score=EXCLUDED.satisfaction_final_score, agent_quality_score=EXCLUDED.agent_quality_score, ticket_priority=EXCLUDED.ticket_priority, needs_human_review=EXCLUDED.needs_human_review",
+          "options": {
+            "queryReplacement": "={{ [$json.call_id, $json.department, $json.analysis.input?.agent_id || '', $json.analysis.input?.agent_name || $json.analysis.agent_performance?.name || '', $json.analysis.input?.customer_phone || '', $json.analysis.input?.customer_name || '', $json.analysis.meta?.call_date || new Date().toISOString(), $json.analysis.meta?.call_direction || 'inbound', $json.analysis.meta?.call_duration_seconds || 0, $json.analysis.transcript?.full_text || '', JSON.stringify($json.analysis), $json.analysis.sales_analysis?.purchase_intent_score || null, $json.analysis.customer?.satisfaction?.final_score || null, $json.analysis.agent_performance?.response_quality_score || null, $json.analysis.ticket?.priority || 'medium', $json.analysis.quality_control?.needs_human_review || false] }}"
+          }
+        },
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.5,
+        "position": [
+          1400,
+          300
+        ],
+        "id": "save-to-db",
+        "name": "Save to DB",
+        "continueOnFail": true,
+        "credentials": {
+          "postgres": {
+            "id": "atlas-postgres-cred",
+            "name": "Atlas PostgreSQL"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "mode": "runOnceForEachItem",
+          "jsCode": "return $('Parse Validate and Enrich').item;"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          1520,
+          300
+        ],
+        "id": "forward-data",
+        "name": "Forward Data"
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "={{ ($env.PANEL_INTERNAL_URL || 'http://panel:8080') + '/api/notify-call' }}",
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              {
+                "name": "X-API-Token",
+                "value": "={{ $env.PANEL_API_TOKEN || '' }}"
+              }
+            ]
+          },
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={{ JSON.stringify({ call_id: $json.call_id }) }}",
+          "options": {
+            "timeout": 90000
+          }
+        },
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          1760,
+          300
+        ],
+        "id": "send-email",
+        "name": "Send Manager Email",
+        "continueOnFail": true,
+        "onError": "continueRegularOutput",
+        "alwaysOutputData": true
+      },
+      {
+        "parameters": {
+          "mode": "runOnceForEachItem",
+          "jsCode": "const prev = $('Parse Validate and Enrich').item.json;\nconst notify = $input.item.json || {};\nreturn { json: {\n  success: prev.success,\n  call_id: prev.call_id,\n  department: prev.department,\n  email_sent: notify.sent === true,\n  email_skipped: notify.skipped || null,\n  email_error: notify.error || null,\n  sms_sent: notify.sms_sent === true,\n  customer_sms_sent: notify.customer_sms_sent === true,\n  sms: notify.sms || null,\n  analysis: prev.analysis\n} };"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          2000,
+          300
+        ],
+        "id": "build-response",
+        "name": "Build Response"
+      },
+      {
+        "parameters": {
+          "respondWith": "json",
+          "responseBody": "={{ $json }}",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.respondToWebhook",
+        "typeVersion": 1.1,
+        "position": [
+          2240,
+          300
+        ],
+        "id": "respond",
+        "name": "Respond to Webhook"
+      }
+    ],
+    "connections": {
+      "Webhook": {
+        "main": [
+          [
+            {
+              "node": "Parse Input",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Parse Input": {
+        "main": [
+          [
+            {
+              "node": "Prepare Analysis Prompt",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Prepare Analysis Prompt": {
+        "main": [
+          [
+            {
+              "node": "AI Request",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "AI Request": {
+        "main": [
+          [
+            {
+              "node": "Parse Validate and Enrich",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Parse Validate and Enrich": {
+        "main": [
+          [
+            {
+              "node": "Save to DB",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Save to DB": {
+        "main": [
+          [
+            {
+              "node": "Forward Data",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Forward Data": {
+        "main": [
+          [
+            {
+              "node": "Send Manager Email",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Send Manager Email": {
+        "main": [
+          [
+            {
+              "node": "Build Response",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Build Response": {
+        "main": [
+          [
+            {
+              "node": "Respond to Webhook",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "settings": {
+      "executionOrder": "v1"
+    },
+    "tags": [
+      {
+        "name": "atlas"
+      },
+      {
+        "name": "call-intelligence"
+      }
+    ]
+  }
+]

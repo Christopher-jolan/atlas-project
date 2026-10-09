@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon %}
+{% block title %}مدت مکالمات{% endblock %}
+{% block actions %}<a href="/export/duration" class="btn btn-ghost no-print">{{ icon("download", "icon-sm") }}<span>خروجی اکسل</span></a>{% endblock %}
+
+{% block content %}
+{% set longest = (items | map(attribute='total_seconds') | max) if items else 0 %}
+<div class="card">
+  <div class="table-wrap"><table class="responsive">
+    <thead><tr><th>اپراتور</th><th>مجموع مکالمه</th><th>تعداد تماس</th><th>میانگین هر تماس</th><th>طولانی‌ترین تماس</th></tr></thead>
+    <tbody>
+    {% for s in items %}
+      <tr>
+        <td class="cell-strong">{{ s.agent_name }}</td>
+        <td style="min-width:170px">
+          <div class="meter"><span class="meter-track"><span class="meter-fill" style="width: {{ ((s.total_seconds or 0) * 100 / (longest or 1)) | int }}%"></span></span>
+          <span class="meter-value" style="width:auto">{{ fmt_duration(s.total_seconds) }}</span></div>
+        </td>
+        <td class="num">{{ s.total_calls | fa }}</td>
+        <td class="num">{{ fmt_duration(s.avg_seconds) }}</td>
+        <td class="num">{{ fmt_duration(s.max_seconds) }}</td>
+      </tr>
+    {% else %}
+      <tr><td colspan="5" class="empty">هنوز داده‌ای ثبت نشده است.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+  <p class="hint" style="margin-top:.75rem">مدت مکالمه فقط برای تماس‌هایی نمایش داده می‌شود که از سیستم تلفنی همراه با مدت تماس ارسال شده‌اند.</p>
+</div>
+{% endblock %}

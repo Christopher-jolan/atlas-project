@@ -1,0 +1,3 @@
+- Each document uses bilingual headings with Persian first followed by an English translation (e.g., `# Mission | ماموریت`, `## فارسی` / `## English`).
+- Content sections are separated by horizontal rules (`---`) between language versions within the same file.
+- Strategic topics are split across single-purpose markdown files rather than combined into one large document, with numeric prefixes ordering them by conceptual scope.

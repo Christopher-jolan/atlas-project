@@ -1,0 +1,1 @@
+Plain Markdown files with bilingual headings and sections (Persian first, English after a separator); no framework, build tool, or runtime.

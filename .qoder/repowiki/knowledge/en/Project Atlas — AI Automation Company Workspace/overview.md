@@ -1,0 +1,1 @@
+Top-level workspace that bundles the company's strategy documents, product portfolio for Atlas CRM/Voice/Agent tools, and Docker-based deployment infrastructure into a single project.

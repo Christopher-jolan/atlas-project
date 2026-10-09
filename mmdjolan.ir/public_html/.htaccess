@@ -1,0 +1,26 @@
+Options -Indexes
+ServerSignature Off
+
+ErrorDocument 400 /400.html
+ErrorDocument 401 /401.html
+ErrorDocument 403 /403.html
+ErrorDocument 404 /404.html
+ErrorDocument 500 /500.html
+
+<IfModule mod_headers.c>
+    Header set X-Content-Type-Options "nosniff"
+    Header set X-Frame-Options "SAMEORIGIN"
+    Header set Referrer-Policy "strict-origin-when-cross-origin"
+    Header set X-XSS-Protection "1; mode=block"
+</IfModule>
+
+<FilesMatch "^(config\.php|encryption\.php|chat-login-debug\.php|\.htaccess|\.htpasswd|.*\.(sql|rar|bak|env))$">
+    Require all denied
+</FilesMatch>
+
+<IfModule mod_php.c>
+    php_flag display_errors off
+    php_flag display_startup_errors off
+    php_value upload_max_filesize 5M
+    php_value post_max_size 5M
+</IfModule>

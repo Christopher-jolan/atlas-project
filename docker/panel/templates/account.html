@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon %}
+{% block title %}حساب کاربری{% endblock %}
+
+{% block content %}
+{% if msg == "ok" %}<div class="alert success">{{ icon("check", "icon-sm") }}رمز عبور شما تغییر کرد.</div>
+{% elif msg == "wrong" %}<div class="alert error">{{ icon("alert", "icon-sm") }}رمز عبور فعلی اشتباه است.</div>
+{% elif msg == "invalid" %}<div class="alert error">{{ icon("alert", "icon-sm") }}رمز جدید باید حداقل ۸ کاراکتر باشد و با تکرار آن یکسان باشد.</div>{% endif %}
+
+<div class="grid-2">
+  <div class="card">
+    <div class="card-head"><h2>{{ icon("user") }}اطلاعات حساب</h2></div>
+    <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.25rem">
+      <span class="avatar" style="width:56px;height:56px;font-size:1.4rem">{{ (user.full_name or user.username)[:1] }}</span>
+      <div><b style="font-size:1.05rem">{{ user.full_name or user.username }}</b><br><span class="badge brand">{{ roles.get(user.role, user.role) }}</span></div>
+    </div>
+    <div class="facts">
+      <div class="fact"><span>نام کاربری</span><b dir="ltr" style="text-align:right">{{ user.username }}</b></div>
+      <div class="fact"><span>آخرین ورود</span><b class="num">{{ user.last_login_at | jdate(with_time=True) }}</b></div>
+      <div class="fact"><span>عضویت از</span><b class="num">{{ user.created_at | jdate }}</b></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><h2>{{ icon("lock") }}تغییر رمز عبور</h2></div>
+    <form method="post" action="/account/password">
+      <input type="text" name="username" value="{{ user.username }}" autocomplete="username" class="hidden" readonly>
+      <div class="field"><label for="current">رمز عبور فعلی</label>
+        <input type="password" id="current" name="current" class="input input-ltr" dir="ltr" required autocomplete="current-password"></div>
+      <div class="field"><label for="password">رمز عبور جدید</label>
+        <input type="password" id="password" name="password" class="input input-ltr" dir="ltr" required minlength="8" autocomplete="new-password"></div>
+      <div class="field"><label for="confirm">تکرار رمز جدید</label>
+        <input type="password" id="confirm" name="confirm" class="input input-ltr" dir="ltr" required minlength="8" autocomplete="new-password"></div>
+      <button type="submit" class="btn">ذخیره رمز جدید</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

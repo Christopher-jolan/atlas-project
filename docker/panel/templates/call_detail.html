@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon, score, priority, dept, meter, ring, bullets %}
+{% block title %}{{ call.customer_name or "تماس" }} — گزارش تحلیل{% endblock %}
+{% block heading %}گزارش تحلیل تماس{% endblock %}
+{% block subtitle %}<div class="subtitle-top">{{ call.customer_name or "مشتری ناشناس" }} · {{ call.call_date | jdate(with_time=True) }}</div>{% endblock %}
+{% block actions %}
+  <button type="button" class="btn btn-ghost no-print" onclick="window.print()">{{ icon("printer", "icon-sm") }}<span>چاپ</span></button>
+{% endblock %}
+
+{% block content %}
+{% set v = view %}
+
+{% if call.needs_human_review %}
+<div class="alert warn">{{ icon("alert", "icon-sm") }}<div><b>نیاز به بررسی مدیر:</b> {{ v.review_reason or "این تماس برای پیگیری انسانی علامت‌گذاری شده است." }}</div></div>
+{% endif %}
+
+<div class="card">
+  <div class="facts">
+    <div class="fact"><span>مشتری</span><b>{{ call.customer_name or "ناشناس" }}</b></div>
+    {% if call.customer_phone %}<div class="fact"><span>تلفن</span><b class="num" dir="ltr" style="text-align:right">{{ call.customer_phone | fa }}</b></div>{% endif %}
+    <div class="fact"><span>اپراتور</span><b>{{ call.agent_name or "—" }}</b></div>
+    <div class="fact"><span>بخش</span><b>{{ call.department | label('department') }}</b></div>
+    <div class="fact"><span>تاریخ تماس</span><b class="num">{{ call.call_date | jdate(with_time=True) }}</b></div>
+    {% if call.call_duration_seconds %}<div class="fact"><span>مدت مکالمه</span><b class="num">{{ fmt_duration(call.call_duration_seconds) }}</b></div>{% endif %}
+    <div class="fact"><span>احساس کلی مشتری</span><b>{{ v.sentiment }}</b></div>
+    <div class="fact"><span>اولویت پیگیری</span><b>{{ priority(call.ticket_priority) }}</b></div>
+  </div>
+</div>
+
+<div class="grid-3 section-gap">
+  <div class="card span-2">
+    <div class="card-head"><h2>{{ icon("file") }}خلاصه مدیریتی</h2></div>
+    <p class="summary-box">{{ v.summary or "خلاصه‌ای برای این تماس ثبت نشده است." }}</p>
+    {% if v.request and v.request != v.summary %}
+      <div class="subhead">درخواست مشتری</div><p>{{ v.request }}</p>
+    {% endif %}
+  </div>
+  <div class="card">
+    <div class="card-head"><h2>{{ icon("target") }}امتیازها</h2></div>
+    <div class="rings">
+      {{ ring("قصد خرید", call.purchase_intent_score) }}
+      {{ ring("رضایت", call.satisfaction_final_score) }}
+      {{ ring("کیفیت اپراتور", call.agent_quality_score) }}
+    </div>
+    {% if v.sat_initial is not none and v.sat_final is not none %}
+      <p class="hint" style="text-align:center;margin-top:1rem">رضایت مشتری از {{ v.sat_initial | fa }} در ابتدای تماس به {{ v.sat_final | fa }} در پایان رسید.</p>
+    {% endif %}
+  </div>
+</div>
+
+{% if v.actions %}
+<div class="card">
+  <div class="card-head"><h2>{{ icon("list") }}اقدامات پیش رو</h2>
+    {% if v.follow_up_date %}<span class="spacer"></span><span class="badge brand">پیگیری تا {{ v.follow_up_date | jdate }}</span>{% endif %}</div>
+  <ol class="actions-list">{% for a in v.actions %}<li>{{ a }}</li>{% endfor %}</ol>
+  {% if v.ticket.assignee %}<p class="hint" style="margin-top:.75rem">مسئول پیشنهادی: {{ v.ticket.assignee }}</p>{% endif %}
+</div>
+{% endif %}
+
+<div class="grid-2 section-gap">
+  {% if v.sales.applicable or call.department in ('sales', 'mixed') %}
+  <div class="card">
+    <div class="card-head"><h2>{{ icon("cart") }}تحلیل فروش</h2></div>
+    <div class="facts" style="margin-bottom:1rem">
+      <div class="fact"><span>مرحله خرید</span><b>{{ v.sales.stage }}</b></div>
+      <div class="fact"><span>احتمال بستن قرارداد</span><b>{% if v.sales.close_prob is not none %}{{ v.sales.close_prob | fa }}٪{% else %}—{% endif %}</b></div>
+      <div class="fact"><span>حساسیت به قیمت</span><b>{{ v.sales.price_sensitivity }}</b></div>
+      {% if v.sales.discount %}<div class="fact"><span>تخفیف لازم (تخمینی)</span><b>{{ v.sales.discount | fa }}٪</b></div>{% endif %}
+    </div>
+    {% if v.sales.objections %}<div class="subhead">نگرانی‌ها و موانع خرید</div>{{ bullets(v.sales.objections, "mid") }}{% endif %}
+    {% if v.sales.competitors %}<div class="subhead">رقبای نام‌برده‌شده</div>{{ bullets(v.sales.competitors) }}{% endif %}
+    {% if v.products %}<div class="subhead">محصولات مورد بحث</div>{{ bullets(v.products) }}{% endif %}
+  </div>
+  {% endif %}
+
+  {% if v.support.applicable or call.department in ('support', 'mixed') %}
+  <div class="card">
+    <div class="card-head"><h2>{{ icon("headset") }}تحلیل پشتیبانی</h2></div>
+    <div class="facts" style="margin-bottom:1rem">
+      {% if v.support.category %}<div class="fact"><span>دسته مشکل</span><b>{{ v.support.category }}</b></div>{% endif %}
+      <div class="fact"><span>وضعیت حل مشکل</span><b>{{ v.support.resolution }}</b></div>
+      <div class="fact"><span>حل در اولین تماس</span><b>{% if v.support.fcr is none %}—{% elif v.support.fcr %}بله{% else %}خیر{% endif %}</b></div>
+      <div class="fact"><span>ریسک از دست دادن مشتری</span><b>{{ v.support.risk }}</b></div>
+    </div>
+    {% if v.support.issue %}<div class="subhead">شرح مشکل</div><p>{{ v.support.issue }}</p>{% endif %}
+  </div>
+  {% endif %}
+
+  <div class="card">
+    <div class="card-head"><h2>{{ icon("user") }}نیازها و دغدغه‌های مشتری</h2></div>
+    {% if v.needs %}<div class="subhead">نیازها</div>{{ bullets(v.needs, "good") }}{% endif %}
+    {% if v.pain_points %}<div class="subhead">دغدغه‌ها</div>{{ bullets(v.pain_points, "bad") }}{% endif %}
+    {% if not v.needs and not v.pain_points %}<p class="cell-muted">موردی ثبت نشده است.</p>{% endif %}
+  </div>
+
+  <div class="card">
+    <div class="card-head"><h2>{{ icon("award") }}عملکرد اپراتور</h2></div>
+    <div class="meters">
+      {{ meter("کیفیت پاسخ‌گویی", v.agent.quality) }}
+      {{ meter("مهارت ارتباطی", v.agent.communication) }}
+      {{ meter("دانش محصول", v.agent.knowledge) }}
+      {{ meter("همدلی", v.agent.empathy) }}
+      {{ meter("رعایت فرآیند", v.agent.process) }}
+    </div>
+    {% if v.agent.strengths %}<div class="subhead" style="margin-top:1.1rem">نقاط قوت</div>{{ bullets(v.agent.strengths, "good") }}{% endif %}
+    {% if v.agent.improvements %}<div class="subhead">پیشنهاد برای بهبود</div>{{ bullets(v.agent.improvements, "mid") }}{% endif %}
+  </div>
+</div>
+
+{% if v.takeaways or v.opportunities or v.risks or v.compliance %}
+<div class="card">
+  <div class="card-head"><h2>{{ icon("sparkles") }}نکات کلیدی برای مدیر</h2></div>
+  <div class="grid-3">
+    {% if v.takeaways %}<div><div class="subhead">برداشت‌های اصلی</div>{{ bullets(v.takeaways) }}</div>{% endif %}
+    {% if v.opportunities %}<div><div class="subhead">فرصت‌ها</div>{{ bullets(v.opportunities, "good") }}</div>{% endif %}
+    {% if v.risks %}<div><div class="subhead">ریسک‌ها</div>{{ bullets(v.risks, "bad") }}</div>{% endif %}
+    {% if v.compliance %}<div><div class="subhead">نکات انطباق و رعایت قوانین</div>{{ bullets(v.compliance, "mid") }}</div>{% endif %}
+  </div>
+</div>
+{% endif %}
+
+{% if call.transcript_text %}
+<div class="card">
+  <div class="card-head"><h2>{{ icon("mic") }}متن کامل مکالمه</h2><span class="spacer"></span>
+    <button type="button" class="btn btn-ghost btn-sm no-print" id="copy-transcript">کپی متن</button></div>
+  <div class="transcript" id="transcript">
+    {%- for line in call.transcript_text.split('\n') -%}
+      {%- set parts = line.split(':', 1) if ':' in line[:30] else [] -%}
+      {%- if parts | length == 2 -%}
+        {%- set who = parts[0].strip() -%}
+        <span class="{% if who in ('مشتری', 'Customer', 'customer') %}who-customer{% else %}who-agent{% endif %}">{{ who }}:</span>{{ parts[1] }}
+      {%- else -%}{{ line }}{%- endif %}
+{% endfor -%}
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+  (function () {
+    var b = document.getElementById("copy-transcript");
+    if (!b) return;
+    b.addEventListener("click", function () {
+      navigator.clipboard.writeText(document.getElementById("transcript").innerText).then(function () {
+        b.textContent = "کپی شد ✓"; setTimeout(function () { b.textContent = "کپی متن"; }, 2000);
+      });
+    });
+  })();
+</script>
+{% endblock %}

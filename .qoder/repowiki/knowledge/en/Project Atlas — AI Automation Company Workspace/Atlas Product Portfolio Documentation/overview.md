@@ -1,0 +1,1 @@
+Documentation-only portfolio of Atlas product offerings — CRM, Flow, Voice, Agent, and Call Intelligence — each with its own architecture, API, database, features, roadmap, and task plans.

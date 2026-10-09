@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}{% if code == 403 %}دسترسی ندارید{% else %}صفحه پیدا نشد{% endif %}{% endblock %}
+{% block content %}
+<div class="card error-page">
+  <b>{{ code | fa }}</b>
+  {% if code == 403 %}
+    <h2>به این بخش دسترسی ندارید</h2>
+    <p class="lead">این بخش فقط برای نقش‌های مجاز فعال است. در صورت نیاز با مدیر سیستم تماس بگیرید.</p>
+  {% else %}
+    <h2>صفحه یا تماس مورد نظر پیدا نشد</h2>
+    <p class="lead">ممکن است آدرس اشتباه باشد یا این مورد حذف شده باشد.</p>
+  {% endif %}
+  <p style="margin-top:1.5rem"><a href="/" class="btn">بازگشت به داشبورد</a></p>
+</div>
+{% endblock %}

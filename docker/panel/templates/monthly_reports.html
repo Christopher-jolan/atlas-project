@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon, empty %}
+{% block title %}گزارش‌های ماهانه{% endblock %}
+{% block subtitle %}<div class="subtitle-top">گزارش مدیریتی هر ماه به‌صورت خودکار در ابتدای ماه بعد تهیه می‌شود.</div>{% endblock %}
+
+{% block content %}
+<div class="card">
+  {% if items %}
+  <div class="table-wrap"><table class="responsive">
+    <thead><tr><th>ماه</th><th>بخش</th><th>تعداد تماس</th><th>تاریخ تهیه</th><th></th></tr></thead>
+    <tbody>
+    {% for r in items %}
+      <tr data-href="/monthly-reports/{{ r.id }}">
+        <td class="cell-strong">{{ r.report_month | jmonth }}</td>
+        <td>{{ r.department | label('department') }}</td>
+        <td class="num">{{ r.total_calls | fa }}</td>
+        <td class="cell-muted num">{{ r.created_at | jdate }}</td>
+        <td data-label=""><a href="/monthly-reports/{{ r.id }}" class="btn btn-ghost btn-sm">مشاهده گزارش</a></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+  {% else %}
+    {{ empty("هنوز گزارش ماهانه‌ای تهیه نشده است. اولین گزارش در ابتدای ماه آینده ساخته می‌شود.", "calendar") }}
+  {% endif %}
+</div>
+{% endblock %}
