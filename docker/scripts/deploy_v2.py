@@ -13,6 +13,20 @@ import paramiko
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 LOCAL = Path(__file__).resolve().parents[1]
 REMOTE = "/opt/atlas"
+
+
+def _read_local_dotenv() -> dict[str, str]:
+    path = LOCAL / ".env"
+    if not path.is_file():
+        return {}
+    out: dict[str, str] = {}
+    for line in path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        k, v = line.split("=", 1)
+        out[k.strip()] = v.strip()
+    return out
 DOMAIN = os.environ.get("ATLAS_DOMAIN", "atlas.mmdjolan.ir")
 RUN_E2E = "--no-e2e" not in sys.argv
 
@@ -59,10 +73,22 @@ env_values = {
 }
 for k, v in env_values.items():
     run(f"grep -q '^{k}=' {REMOTE}/.env && sed -i 's#^{k}=.*#{k}={v}#' {REMOTE}/.env || echo '{k}={v}' >> {REMOTE}/.env", quiet=True)
-run(f"grep -E '^(PANEL_DOMAIN|PANEL_PUBLIC_URL|PUBLIC_DEMO_API|CORS_ORIGINS|UPLOAD_MAX_MB)=' {REMOTE}/.env")
+
+local_env = _read_local_dotenv()
+ai_key = (local_env.get("AI_API_KEY") or "").strip()
+if ai_key:
+    run(
+        f"grep -q '^AI_API_KEY=' {REMOTE}/.env && "
+        f"sed -i 's#^AI_API_KEY=.*#AI_API_KEY={ai_key}#' {REMOTE}/.env || "
+        f"echo 'AI_API_KEY={ai_key}' >> {REMOTE}/.env",
+        quiet=True,
+    )
+    print("synced AI_API_KEY from local docker/.env to VPS")
+
+run(f"grep -E '^(PANEL_DOMAIN|PANEL_PUBLIC_URL|PUBLIC_DEMO_API|CORS_ORIGINS|UPLOAD_MAX_MB|AI_API_KEY)=' {REMOTE}/.env | sed 's/AI_API_KEY=.*/AI_API_KEY=***redacted***/'")
 
 run("ufw status | head -3; (ufw status | grep -q 'Status: active' && ufw allow 443/tcp && ufw allow 443/udp) || true")
-run(f"cd {REMOTE} && docker compose -f docker-compose.prod.yml --env-file .env up -d --build panel mailer caddy n8n 2>&1 | tail -12", timeout=1200)
+run(f"cd {REMOTE} && docker compose -f docker-compose.prod.yml --env-file .env up -d --build panel llm mailer caddy n8n 2>&1 | tail -12", timeout=1200)
 time.sleep(15)
 run("docker exec -u node atlas-n8n n8n import:workflow --input=/opt/atlas-import/workflows/atlas-call-intelligence-v1.json 2>&1 | tail -2")
 run("""docker exec atlas-postgres psql -U atlas -d atlas -c "UPDATE workflow_entity SET active = true WHERE name ILIKE 'Atlas%' RETURNING name, active;" """)

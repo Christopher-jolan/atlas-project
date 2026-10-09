@@ -75,8 +75,8 @@ POSTGRES_USER=atlas
 POSTGRES_PASSWORD=atlas123
 POSTGRES_DB=atlas
 
-# AI API (Gemini)
-AI_API_KEY=your-gemini-api-key-here
+# AI API (Gemini) — فقط در docker/.env (در گیت commit نمی‌شود)
+AI_API_KEY=
 AI_MODEL=gemma2:2b
 
 # Email

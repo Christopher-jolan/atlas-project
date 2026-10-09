@@ -1,4 +1,17 @@
 import os
+from pathlib import Path
+
+# Local dev: read secrets from docker/.env (gitignored; not used inside containers with env already set).
+if not os.getenv("AI_API_KEY"):
+    _loader = Path(__file__).resolve().parents[2] / "scripts" / "load_env.py"
+    if _loader.is_file():
+        import importlib.util
+
+        spec = importlib.util.spec_from_file_location("atlas_load_env", _loader)
+        mod = importlib.util.module_from_spec(spec)
+        assert spec.loader is not None
+        spec.loader.exec_module(mod)
+        mod.load_docker_env()
 
 DB_HOST = os.getenv("DB_HOST", "postgres")
 DB_PORT = int(os.getenv("DB_PORT", "5432"))

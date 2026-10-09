@@ -6,6 +6,9 @@ import re
 import urllib.request
 from pathlib import Path
 
+from load_env import load_docker_env
+
+load_docker_env()
 API_KEY = os.getenv("AI_API_KEY", "")
 GEMINI_MODEL = "gemini-2.5-flash"
 GEMINI_URL = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent?key={API_KEY}"
